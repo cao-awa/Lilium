@@ -1,0 +1,15 @@
+html {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+body {
+    height: calc(100% - 4rem) !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+div[id="__next"] {
+    height: 100% !important;
+    width: 100% !important;
+}
