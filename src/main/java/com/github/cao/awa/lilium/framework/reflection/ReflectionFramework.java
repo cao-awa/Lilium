@@ -103,10 +103,6 @@ public abstract class ReflectionFramework {
 
     public static Field fetchField(@NotNull Object object, @NotNull String key) {
         return EntrustEnvironment.trys(() -> ensureAccessible(object.getClass().getDeclaredField(key), object), e -> {
-            if (key.equals("says")) {
-                System.out.println(Arrays.toString(object.getClass().getDeclaredFields()));
-                e.printStackTrace();
-            }
             return fetchField(object.getClass().getSuperclass(), object, key);
         });
     }
@@ -115,22 +111,21 @@ public abstract class ReflectionFramework {
         return EntrustEnvironment.trys(() -> ensureAccessible(field, object));
     }
 
-    public static Class<?>[] getGenericType(@NotNull ParameterizedType parameterized) {
+    public static Type[] getGenericType(@NotNull ParameterizedType parameterized) {
         return Arrays.stream(
-                        parameterized.getActualTypeArguments()
-                ).map(ReflectionFramework::toClass)
-                .toArray(Class[]::new);
+                parameterized.getActualTypeArguments()
+        ).toArray(Type[]::new);
     }
 
     public static Class<?> toClass(Type type) {
         return (Class<?>) type;
     }
 
-    public static Class<?> getArgType(Field field) {
+    public static Type getArgType(Field field) {
         return getArgType(field.getGenericType());
     }
 
-    public static Class<?> getArgType(Type type) {
+    public static Type getArgType(Type type) {
         if (type instanceof ParameterizedType parameterized) {
             return getGenericType(parameterized)[0];
         }

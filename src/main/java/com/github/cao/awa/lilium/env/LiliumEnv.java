@@ -6,6 +6,8 @@ import com.github.cao.awa.lilium.framework.config.ConfigFramework;
 import com.github.cao.awa.lilium.framework.serialize.BinarySerializeFramework;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 public class LiliumEnv {
     public static final ConfigFramework CONFIG_FRAMEWORK = new ConfigFramework();
@@ -18,6 +20,9 @@ public class LiliumEnv {
         TestObj test = new TestObj();
         CONFIG_FRAMEWORK.createConfig(test);
         test.test();
+
+        test.bootstrapConfig.get().bindPort.update(1919810);
+        test.bootstrapConfig.get().inner1.get().says.update(Map.of("Aaa", "awa"));
 
         TestObj test2 = new TestObj();
         CONFIG_FRAMEWORK.deepCopy(test, test2);
