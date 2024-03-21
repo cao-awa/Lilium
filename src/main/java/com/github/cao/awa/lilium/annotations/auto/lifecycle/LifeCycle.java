@@ -1,4 +1,4 @@
-package com.github.cao.awa.lilium.annotations.config;
+package com.github.cao.awa.lilium.annotations.auto.lifecycle;
 
 import com.github.cao.awa.apricot.annotations.Stable;
 import com.github.cao.awa.apricot.annotations.auto.Auto;
@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
 @Auto
 @Stable
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
-public @interface AutoConfig {
-    String value() default "";
+@Target({ElementType.TYPE, ElementType.FIELD, ElementType.LOCAL_VARIABLE})
+public @interface LifeCycle {
+
 }

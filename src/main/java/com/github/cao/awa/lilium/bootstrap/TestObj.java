@@ -1,11 +1,9 @@
 package com.github.cao.awa.lilium.bootstrap;
 
-import com.github.cao.awa.lilium.annotations.config.AutoConfig;
-import com.github.cao.awa.lilium.annotations.config.UseConfigTemplate;
+import com.github.cao.awa.lilium.annotations.auto.config.AutoConfig;
 import com.github.cao.awa.lilium.config.bootstrap.LiliumBootstrapConfig;
 import com.github.cao.awa.lilium.config.instance.ConfigEntry;
 import com.github.cao.awa.lilium.config.instance.test.DatabaseAccessEntry;
-import com.github.cao.awa.lilium.config.template.bootstarp.LiliumBootstrapConfigTemplate;
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment;
 
 public class TestObj {
@@ -22,6 +20,6 @@ public class TestObj {
         System.out.println(this.bootstrapConfig.get().bindPort.get());
         System.out.println(this.bootstrapConfig.get().metadata.get().configVersion.get());
         System.out.println(this.bootstrapConfig.get().metadata2.get().configVersion.get());
-        System.out.println(this.bootstrapConfig.get().inner1.get().says.get());
+        System.out.println(this.bootstrapConfig.get().inner1.get().configs.get());
     }
 }

@@ -1,4 +1,4 @@
-package com.github.cao.awa.lilium.annotations.config;
+package com.github.cao.awa.lilium.annotations.auto.config;
 
 import com.github.cao.awa.apricot.annotations.Stable;
 import com.github.cao.awa.apricot.annotations.auto.Auto;

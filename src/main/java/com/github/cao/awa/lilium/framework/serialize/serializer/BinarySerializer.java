@@ -7,12 +7,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
-public abstract class BinarySerializer {
-    public abstract void serialize(Object object, Field field, ByteArrayOutputStream output) throws IOException;
+public abstract class BinarySerializer<T> {
+    public abstract void serialize(T object, ByteArrayOutputStream output) throws IOException;
 
-    public abstract void deserialize(Object object, Field field, BytesReader reader) throws IllegalAccessException;
+    public abstract T deserialize(BytesReader reader) throws IllegalAccessException;
 
-    public <T> T getAs(Object object, Field field, Class<T> clazz) {
-        return EntrustEnvironment.trys(() -> clazz.cast(field.get(object)));
+    public <X> X getAs(Object object, Class<X> clazz) {
+        return EntrustEnvironment.trys(() -> clazz.cast(object));
     }
 }

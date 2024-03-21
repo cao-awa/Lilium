@@ -1,4 +1,4 @@
-package com.github.cao.awa.lilium.annotations.serialize;
+package com.github.cao.awa.lilium.annotations.auto.serialize;
 
 import com.github.cao.awa.apricot.annotations.Stable;
 import com.github.cao.awa.apricot.annotations.auto.Auto;

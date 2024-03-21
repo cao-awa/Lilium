@@ -4,9 +4,9 @@ import com.alibaba.fastjson2.JSONArray
 import com.alibaba.fastjson2.JSONObject
 import com.github.cao.awa.apricot.util.collection.ApricotCollectionFactor
 import com.github.cao.awa.apricot.util.io.IOUtil
-import com.github.cao.awa.lilium.annotations.config.AutoConfig
-import com.github.cao.awa.lilium.annotations.config.AutoConfigTemplate
-import com.github.cao.awa.lilium.annotations.config.UseConfigTemplate
+import com.github.cao.awa.lilium.annotations.auto.config.AutoConfig
+import com.github.cao.awa.lilium.annotations.auto.config.AutoConfigTemplate
+import com.github.cao.awa.lilium.annotations.auto.config.UseConfigTemplate
 import com.github.cao.awa.lilium.config.LiliumConfig
 import com.github.cao.awa.lilium.config.bootstrap.Inner1Config
 import com.github.cao.awa.lilium.config.instance.ConfigEntry
@@ -14,21 +14,22 @@ import com.github.cao.awa.lilium.config.template.ConfigTemplate
 import com.github.cao.awa.lilium.debug.dependency.circular.CircularDependency
 import com.github.cao.awa.lilium.debug.dependency.circular.RequiredDependency
 import com.github.cao.awa.lilium.env.LiliumEnv
+import com.github.cao.awa.lilium.exception.auto.config.FieldParamMismatchException
+import com.github.cao.awa.lilium.exception.auto.config.WrongConfigTemplateException
 import com.github.cao.awa.lilium.framework.reflection.ReflectionFramework
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment
 import io.netty.util.internal.shaded.org.jctools.queues.MessagePassingQueue.Consumer
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import it.unimi.dsi.fastutil.objects.ObjectArrayList
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.io.FileReader
 import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.nio.charset.StandardCharsets
 import java.util.*
 import java.util.function.BiConsumer
-import kotlin.collections.Collection
 
 class ConfigFramework : ReflectionFramework() {
     companion object {
@@ -63,18 +64,27 @@ class ConfigFramework : ReflectionFramework() {
                 val json = JSONObject.parse(IOUtil.read(FileReader(templateData.value, StandardCharsets.UTF_8)))
 
                 // 创建模板
-                createTemplate(config, json, CircularDependency())
+                try {
+                    // 当类型不正确时构建异常链，用以debug
+                    EntrustEnvironment.reThrow(
+                        { createTemplate(config, json, CircularDependency()) },
+                        FieldParamMismatchException::class.java,
+                        { WrongConfigTemplateException(templateClass, it.field, it) }
+                    )
+                } catch (ex: WrongConfigTemplateException) {
+                    LOGGER.warn(
+                        "Failed to resolve the template '{}' for config '{}'",
+                        templateClass.name,
+                        config::class.java.name,
+                        ex
+                    )
+                }
                 val template = templateClass.getConstructor().newInstance() as ConfigTemplate<*>
 
                 // 给模板设置配置内容并存储备用
                 fetchField(template, "config").set(template, config)
                 this.templates[templateClass] = template
                 this.configToTemplates[configType] = config
-
-                if (config is Inner1Config) {
-                    var inner = config
-                    println(">>>>>>>>" + inner.says.get())
-                }
             }
     }
 
@@ -93,11 +103,11 @@ class ConfigFramework : ReflectionFramework() {
             val argType = getArgType(field)
 
             postProcessing(target, configEntry, null, argType, configChain,
-                {
+                { parameterized ->
                     // 当依赖是泛型而不是Entry也不是数据
 
                     // ConfigEntry只能有一层泛型，不允许List<List<List<...>>>
-                    val clazz = toClass(it.rawType)
+                    val clazz = toClass(parameterized.rawType)
 
                     // 如果是集合，只创建array list和hash set，其他特殊指定类型会被忽略
                     if (Collection::class.java.isAssignableFrom(clazz)) {
@@ -114,16 +124,35 @@ class ConfigFramework : ReflectionFramework() {
                             return@postProcessing
                         }
 
+                        // 获得实际的类型
+                        val listTemplate = toClass(parameterized.actualTypeArguments[0])
+
                         // 添加数据并设置ConfigEntry的值
                         for (value in getTemplateJsonArray(getter, field)) {
-                            newDelegate.add(value)
+                            // 当实际类型是一个依赖时，进一步创建，否则在检查后直接添加
+                            if (LiliumConfig::class.java.isAssignableFrom(listTemplate)) {
+                                newDelegate.add(
+                                    createTemplateObject(
+                                        listTemplate,
+                                        value as JSONObject,
+                                        configChain
+                                    )
+                                )
+                            } else {
+                                // 当类型不正确时构建异常链，用以debug
+                                EntrustEnvironment.reThrow(
+                                    { checkType(listTemplate, value, newDelegate::add) },
+                                    ClassCastException::class.java,
+                                    { FieldParamMismatchException(field, listTemplate, value::class.java, it) }
+                                )
+                            }
                         }
                         fetchField(configEntry, "value").set(configEntry, newDelegate)
                     }
 
                     // 如果是Map，只创建hash map，其他特殊指定类型会被忽略
                     if (Map::class.java.isAssignableFrom(clazz)) {
-                        if (it.actualTypeArguments[0] != String::class.java) {
+                        if (parameterized.actualTypeArguments[0] != String::class.java) {
                             throw IllegalArgumentException("The config entry can only use 'java.lang.String' come as the key type")
                         }
 
@@ -165,6 +194,20 @@ class ConfigFramework : ReflectionFramework() {
                 }
             )
         }
+    }
+
+    private fun createTemplateObject(
+        configType: Class<*>,
+        value: JSONObject,
+        configChain: CircularDependency
+    ): LiliumConfig {
+        val config = configType.getConstructor().newInstance() as LiliumConfig
+        createTemplate(
+            config,
+            value,
+            configChain
+        )
+        return config
     }
 
     private fun isTemplateDataPresent(getter: JSONObject, field: Field): Boolean {
@@ -252,6 +295,13 @@ class ConfigFramework : ReflectionFramework() {
                 )
                 return@forEach
             }
+            if (!Modifier.isFinal(it.modifiers)) {
+                LOGGER.warn(
+                    "The field '{}' declared in '{}' is not final modified, may cause explicit changes",
+                    it.name,
+                    target::class.java.name
+                )
+            }
             ensureAccessible(it, target)
 
             handler.accept(it, template)
@@ -296,7 +346,7 @@ class ConfigFramework : ReflectionFramework() {
                     // 首先从当前配置模板中获取
                     val fetchedTemplate = fetchField(template, field.name)[template]
                     var fetchResult: Any? = null
-                    if (fetchedTemplate != null) {
+                    if (fetchedTemplate != null && fetchedTemplate != ConfigEntry.ENTRY) {
                         fetchResult = (fetchedTemplate as ConfigEntry<*>).get()
                     }
 
@@ -382,7 +432,8 @@ class ConfigFramework : ReflectionFramework() {
 
     private fun ensureEntryNotNull(target: Any, field: Field): ConfigEntry<*> {
         val fieldValue = field[target]
-        var configEntry: ConfigEntry<*>? = if (fieldValue == null) null else fieldValue as ConfigEntry<*>
+        var configEntry: ConfigEntry<*>? =
+            if (fieldValue == null || fieldValue == ConfigEntry.ENTRY) null else fieldValue as ConfigEntry<*>
         configEntry = configEntry ?: field.type.getConstructor().newInstance() as ConfigEntry<*>
         // 设置此ConfigEntry的key为字段名称，要用它来获取多个相同模板的数据以及debug
         fetchField(configEntry, "key").set(configEntry, field.name)
@@ -424,25 +475,31 @@ class ConfigFramework : ReflectionFramework() {
             // 设置此ConfigEntry的key为字段名称
             fetchField(newConfigEntry, "key").set(newConfigEntry, it.name)
             // 将ConfigEntry设置到新字段
-            fetchField(another, it).set(another, configEntry)
+            fetchField(another, it.name).set(another, newConfigEntry)
 
             // 将配置内容深拷贝到新的ConfigEntry
             postProcessing(o, newConfigEntry, null, getArgType(it), configChain,
-                { /* 泛型处理无用 */ },
+                {
+                    // TODO 泛型复制
+                },
                 { template ->
                     // 当依赖是Entry而不是数据
 
                     // 处理此配置的依赖
                     // 配置对象内所有字段都应为ConfigEntry<LiliumConfig>
-                    val config = configEntry.get() as LiliumConfig
-                    createConfig(config, configEntry.key(), template ?: getTemplate(config), configChain)
+                    val oldConfig = configEntry.get() as LiliumConfig
+                    val newConfig = newConfigEntry.get() as LiliumConfig
+                    deepCopy(oldConfig, newConfig, configChain)
                 },
                 {
                     // 使用序列化器破坏引用
                     EntrustEnvironment.notNull(
                         fetchField(newConfigEntry, "value")
                     ) { field ->
-                        field.set(newConfigEntry, LiliumEnv.BINARY_SERIALIZE_FRAMEWORK.breakRefs(configEntry.get()))
+                        field.set(
+                            newConfigEntry,
+                            LiliumEnv.BINARY_SERIALIZE_FRAMEWORK.breakRefs(configEntry.get() ?: return@notNull)
+                        )
                     }
                 }
             )

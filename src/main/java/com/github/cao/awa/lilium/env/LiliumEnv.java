@@ -22,10 +22,14 @@ public class LiliumEnv {
         test.test();
 
         test.bootstrapConfig.get().bindPort.update(1919810);
-        test.bootstrapConfig.get().inner1.get().says.update(Map.of("Aaa", "awa"));
 
         TestObj test2 = new TestObj();
         CONFIG_FRAMEWORK.deepCopy(test, test2);
+
+        test.bootstrapConfig.get().bindPort.update(114514);
+        test.bootstrapConfig.get().metadata.get().configVersion.update(45678);
+
         test2.test();
+        test.test();
     }
 }

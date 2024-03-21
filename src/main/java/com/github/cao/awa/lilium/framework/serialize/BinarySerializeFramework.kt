@@ -2,8 +2,7 @@ package com.github.cao.awa.lilium.framework.serialize
 
 import com.github.cao.awa.apricot.io.bytes.reader.BytesReader
 import com.github.cao.awa.apricot.util.collection.ApricotCollectionFactor
-import com.github.cao.awa.lilium.annotations.serialize.AutoSerializer
-import com.github.cao.awa.lilium.env.LiliumEnv
+import com.github.cao.awa.lilium.annotations.auto.serialize.AutoSerializer
 import com.github.cao.awa.lilium.framework.reflection.ReflectionFramework
 import com.github.cao.awa.lilium.framework.serialize.serializer.BinarySerializer
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment
@@ -12,7 +11,7 @@ import java.lang.reflect.Field
 import java.util.*
 
 class BinarySerializeFramework : ReflectionFramework() {
-    private val serializers: MutableMap<Class<*>, BinarySerializer> = ApricotCollectionFactor.hashMap()
+    private val serializers: MutableMap<Class<*>, BinarySerializer<*>> = ApricotCollectionFactor.hashMap()
 
     override fun work() {
         reflection().getTypesAnnotatedWith(AutoSerializer::class.java)
@@ -26,34 +25,31 @@ class BinarySerializeFramework : ReflectionFramework() {
             }
     }
 
-    fun addSerializer(targets: List<Class<*>>, serializer: BinarySerializer) {
+    fun addSerializer(targets: List<Class<*>>, serializer: BinarySerializer<*>) {
         for (target in targets) {
             this.serializers[target] = serializer
         }
-
-        println(targets)
-        println(this.serializers)
     }
 
-    private fun cast(clazz: Class<*>): Class<out BinarySerializer?> {
+    private fun cast(clazz: Class<*>): Class<out BinarySerializer<*>> {
         return EntrustEnvironment.cast(clazz)!!
     }
 
-    private fun buildSerializer(clazz: Class<out BinarySerializer>): BinarySerializer {
+    private fun buildSerializer(clazz: Class<out BinarySerializer<*>>): BinarySerializer<*> {
         return clazz.getConstructor().newInstance()
     }
 
-    fun getSerializer(field: Field): BinarySerializer {
-        return this.serializers[field.type]
-            ?: throw NullPointerException("The serializer for '" + field.type.name + "' is not found, unable to done serialize")
+    fun <T> getSerializer(type: Class<T>): BinarySerializer<T> {
+        return EntrustEnvironment.cast(this.serializers[type]
+            ?: throw NullPointerException("The serializer for '" + type.name + "' is not found, unable to done serialize"))!!
     }
 
-    fun serialize(o: Any): ByteArray {
+    fun serializeObject(o: Any): ByteArray {
         try {
             ByteArrayOutputStream().use { output ->
                 for (field in o.javaClass.declaredFields) {
                     ensureAccessible(field!!, o)
-                    getSerializer(field).serialize(o, field, output)
+                    getSerializer(field.type).serialize(EntrustEnvironment.cast(o), output)
                 }
                 return output.toByteArray()
             }
@@ -62,21 +58,37 @@ class BinarySerializeFramework : ReflectionFramework() {
         }
     }
 
-    fun deserialize(o: Any, data: ByteArray?) {
+    fun serialize(o: Any): ByteArray {
+        try {
+            ByteArrayOutputStream().use { output ->
+                getSerializer(o::class.java).serialize(EntrustEnvironment.cast(o), output)
+
+                return output.toByteArray()
+            }
+        } catch (e: Exception) {
+            throw RuntimeException(e)
+        }
+    }
+
+    fun deserialize(o: Any, data: ByteArray) {
         val reader = BytesReader.of(data)
 
         for (field in o.javaClass.declaredFields) {
             ensureAccessible(field!!, o)
-            EntrustEnvironment.trys { getSerializer(field).deserialize(o, field, reader) }
+            EntrustEnvironment.trys {
+                field[o] = getSerializer(field.type).deserialize(reader)
+            }
         }
     }
 
+    fun <T> deserialize(type: Class<T>, data: BytesReader): T {
+        return getSerializer(type).deserialize(data)
+    }
+
     fun <T : Any> breakRefs(o: T): T {
-        // 此拷贝仅支持具有无参构造的对象
-        val result = o::class.java.getConstructor().newInstance()
-        deserialize(
-            result,
-            serialize(o)
+        val result: T = deserialize(
+            o::class.java,
+            BytesReader.of(serialize(o))
         )
         return result
     }

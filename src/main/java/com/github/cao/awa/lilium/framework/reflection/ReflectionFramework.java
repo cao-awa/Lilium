@@ -3,6 +3,7 @@ package com.github.cao.awa.lilium.framework.reflection;
 import com.alibaba.fastjson2.util.ParameterizedTypeImpl;
 import com.github.cao.awa.apricot.annotations.auto.Auto;
 import com.github.cao.awa.apricot.resource.loader.ResourceLoader;
+import com.github.cao.awa.lilium.bootstrap.TestObj;
 import com.github.cao.awa.lilium.framework.loader.JarSearchLoader;
 import com.github.cao.awa.trtr.framework.accessor.method.MethodAccess;
 import com.github.cao.awa.trtr.framework.exception.NoAutoAnnotationException;
@@ -23,9 +24,27 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 
 public abstract class ReflectionFramework {
     private static final Logger LOGGER = LogManager.getLogger("ReflectionFramework");
+    private static final Field MODIFIER_FILED = EntrustEnvironment.trys(() -> {
+        Method getDeclaredFields0 = Class.class.getDeclaredMethod("getDeclaredFields0", boolean.class);
+        getDeclaredFields0.setAccessible(true);
+        Field[] fields = (Field[]) getDeclaredFields0.invoke(Field.class, false);
+        Field modifierField = null;
+        for (Field f : fields) {
+            if ("modifiers".equals(f.getName())) {
+                modifierField = f;
+                break;
+            }
+        }
+        if (modifierField == null) {
+            return null;
+        }
+        modifierField.setAccessible(true);
+        return modifierField;
+    });
     private static final Reflections REFLECTIONS = EntrustEnvironment.trys(() -> {
         File liliumJar = new File(URLDecoder.decode(
                 ResourceLoader.class.getProtectionDomain()
@@ -48,7 +67,7 @@ public abstract class ReflectionFramework {
     public abstract void work();
 
     public boolean checkFields(String target, List<String> field) {
-        if (field.size() > 0) {
+        if (!field.isEmpty()) {
             LOGGER.error("'{}' has missing required field(s): {}",
                     target,
                     field
@@ -85,10 +104,15 @@ public abstract class ReflectionFramework {
     }
 
     public static Field ensureAccessible(@NotNull Field field, @Nullable Object obj) {
-        if (field.canAccess(Modifier.isStatic(field.getModifiers()) ? null : obj)) {
-            return field;
-        }
         field.trySetAccessible();
+        if (Modifier.isFinal(field.getModifiers())) {
+            try {
+                assert MODIFIER_FILED != null;
+                MODIFIER_FILED.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+            } catch (Throwable ignored) {
+
+            }
+        }
         return field;
     }
 
@@ -119,6 +143,13 @@ public abstract class ReflectionFramework {
 
     public static Class<?> toClass(Type type) {
         return (Class<?>) type;
+    }
+
+    public static void checkType(Class<?> target, Object object, Consumer<Object> consumer) {
+        if (target != object.getClass()) {
+            throw new ClassCastException("The parameter has specified '" + target + "' but got '" + object.getClass() + "'");
+        }
+        consumer.accept(object);
     }
 
     public static Type getArgType(Field field) {
