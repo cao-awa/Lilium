@@ -1,0 +1,8 @@
+{
+  "metadata": "@INHERITED",
+  "bootstrap": {
+    "metadata": "@INHERITED",
+    "bind-port": 45678
+  }
+}
+

@@ -8,7 +8,6 @@ import com.github.cao.awa.lilium.annotations.auto.config.AutoConfig
 import com.github.cao.awa.lilium.annotations.auto.config.AutoConfigTemplate
 import com.github.cao.awa.lilium.annotations.auto.config.UseConfigTemplate
 import com.github.cao.awa.lilium.config.LiliumConfig
-import com.github.cao.awa.lilium.config.bootstrap.Inner1Config
 import com.github.cao.awa.lilium.config.instance.ConfigEntry
 import com.github.cao.awa.lilium.config.template.ConfigTemplate
 import com.github.cao.awa.lilium.debug.dependency.circular.CircularDependency
@@ -102,7 +101,7 @@ class ConfigFramework : ReflectionFramework() {
             // 获取配置要求的类型
             val argType = getArgType(field)
 
-            postProcessing(target, configEntry, null, argType, configChain,
+            postProcessing(target, configEntry, argType, configChain,
                 { parameterized ->
                     // 当依赖是泛型而不是Entry也不是数据
 
@@ -240,7 +239,7 @@ class ConfigFramework : ReflectionFramework() {
 
     /**
      * @param target 此参数为要处理的对象
-     * @param parentTemplate 此模板用以覆盖某种模板的原始数据，用在特定的模板中
+     * @param parentTemplate 此模板用以覆盖某种模板的默认数据，用在特定的模板中
      * @param handler 在进行预处理完成后会被调用，进行中间处理
      *
      * @see postProcessing
@@ -257,23 +256,29 @@ class ConfigFramework : ReflectionFramework() {
         val useTemplate = getAnnotation(target, UseConfigTemplate::class.java)
         val configTemplate = useTemplate?.value?.java?.let { getTemplate(it) }
 
-        var template = fetchTemplateConfig(configTemplate)
+        var usedTemplate = fetchTemplateConfig(configTemplate)
+
+        var hasInherited = false
 
         // 当parentTemplate存在时，这意味着当前的配置的模板重写了目标模板
-        if (parentTemplate != null && template != null) {
+        if (parentTemplate != null && usedTemplate != null) {
             for (field in getFields(parentTemplate)) {
-                val configEntry = fetchField(
+                val configEntryField = fetchField(
                     parentTemplate,
                     field.name
                 )
-                if (getArgType(configEntry) == template!!::class.java && field.name.equals(currentKey)) {
-                    template = (configEntry[parentTemplate] as ConfigEntry<*>).get() as LiliumConfig
+                if (getArgType(configEntryField) == usedTemplate!!::class.java && (field.name.equals(currentKey))) {
+                    val configEntry = (configEntryField[parentTemplate] as ConfigEntry<*>).get()
+                    if (configEntry != null) {
+                        usedTemplate = configEntry as LiliumConfig
+                        hasInherited = true
+                    }
                 }
             }
         }
 
-        if (template != null) {
-            for (field in getFields(template)) {
+        if (usedTemplate != null) {
+            for (field in getFields(usedTemplate)) {
                 if (fetchField(target, field.name) == null) {
                     throw IllegalStateException("The '" + clazz.name + "' doesn't match to the config template '" + useTemplate.value.java.name + "'")
                 }
@@ -304,6 +309,31 @@ class ConfigFramework : ReflectionFramework() {
             }
             ensureAccessible(it, target)
 
+            var template = usedTemplate
+
+            if (hasInherited && usedTemplate != null) {
+                val configEntry = fetchField(
+                    usedTemplate,
+                    it.name
+                )
+                if (LiliumConfig::class.java.isAssignableFrom(
+                        toClass(
+                            getArgType(
+                                fetchField(
+                                    usedTemplate,
+                                    it.name
+                                )
+                            )
+                        )
+                    ) && getArgType(configEntry) == usedTemplate!!::class.java
+                ) {
+                    template = (fetchField(
+                        usedTemplate,
+                        it.name
+                    )[usedTemplate] as ConfigEntry<*>).get() as LiliumConfig
+                }
+            }
+
             handler.accept(it, template)
         }
     }
@@ -324,6 +354,10 @@ class ConfigFramework : ReflectionFramework() {
         )[configTemplate] as LiliumConfig else null
     }
 
+    private fun <T : ConfigTemplate<*>> getTemplateConfig(configTemplate: Class<T>): LiliumConfig? {
+        return fetchTemplateConfig(getTemplate(configTemplate))
+    }
+
     fun createConfig(o: Any) {
         createConfig(o, "", getTemplate(o), CircularDependency())
     }
@@ -338,24 +372,48 @@ class ConfigFramework : ReflectionFramework() {
             // 确保ConfigEntry不为空不
             val configEntry = ensureEntryNotNull(target, field)
 
+            val argType = getArgType(field)
+
             val creatingWithTemplate = {
                 // 当依赖是数据而不是Entry
 
                 // 读取模板获得默认值
                 val value = if (template != null) {
+                    val requiredType = toClass(argType)
+
                     // 首先从当前配置模板中获取
                     val fetchedTemplate = fetchField(template, field.name)[template]
                     var fetchResult: Any? = null
                     if (fetchedTemplate != null && fetchedTemplate != ConfigEntry.ENTRY) {
-                        fetchResult = (fetchedTemplate as ConfigEntry<*>).get()
+                        fetchResult = checkOrDiscard(requiredType, (fetchedTemplate as ConfigEntry<*>).get())
                     }
 
-                    // 若当前配置模板中不存在需要的目标，则使用此模板的原始数据
+                    // 当前模板找不到时从父模板的默认数据板尝试获取
+                    // 因为父模板可能覆盖了这个模板的默认值
+                    if (parentTemplate != null && fetchResult == null) {
+                        fetchResult = checkOrDiscard(
+                            requiredType,
+                            fetchConfigValue(
+                                // 使用currentKey获取父模板的默认数据
+                                fetchConfig(
+                                    this.configToTemplates[parentTemplate::class.java]!! as? LiliumConfig,
+                                    currentKey
+                                ),
+                                field
+                            )
+                        )
+                    }
+
+                    // 若当前配置模板和父模板中都不存在需要的目标，则使用此模板的默认数据
                     if (fetchResult == null) {
-                        val sourceTemplate = this.configToTemplates[template::class.java]!!
-                        // 不要忘记fetch到需要的字段后get，这个原始数据是LiliumConfig而不是此字段的值()
-                        fetchResult =
-                            (fetchField(sourceTemplate, field.name)[sourceTemplate] as ConfigEntry<*>).get()
+                        // 不要忘记fetch到需要的字段后get，这个默认数据是LiliumConfig而不是此字段的值()
+                        fetchResult = checkOrDiscard(
+                            requiredType,
+                            fetchConfigValue(
+                                this.configToTemplates[template::class.java]!!,
+                                field
+                            )
+                        )
                     }
 
                     // 返回结果
@@ -372,7 +430,7 @@ class ConfigFramework : ReflectionFramework() {
             }
 
             postProcessing(
-                target, configEntry, parentTemplate, getArgType(field), configChain,
+                target, configEntry, argType, configChain,
                 // 处理泛型的方式和处理普通数据一样
                 { creatingWithTemplate() },
                 {
@@ -381,7 +439,7 @@ class ConfigFramework : ReflectionFramework() {
                     // 处理此配置的依赖
                     // 配置对象内所有字段都应为ConfigEntry<LiliumConfig>
                     val config = configEntry.get() as LiliumConfig
-                    createConfig(config, configEntry.key(), it ?: getTemplate(config), configChain)
+                    createConfig(config, configEntry.key(), template ?: getTemplate(config), configChain)
                 },
                 // 处理普通数据
                 creatingWithTemplate
@@ -389,19 +447,32 @@ class ConfigFramework : ReflectionFramework() {
         }
     }
 
+    private fun fetchConfig(template: LiliumConfig?, field: Field): LiliumConfig? = fetchConfig(template, field.name)
+
+    private fun fetchConfig(template: LiliumConfig?, field: String): LiliumConfig? {
+        val fetchedSourceTemplate = fetchField(template ?: return null, field)[template] ?: return null
+        val result = (fetchedSourceTemplate as ConfigEntry<*>).get() as? LiliumConfig ?: return null
+        return result
+    }
+
+    private fun fetchConfigValue(template: LiliumConfig?, field: Field): Any? = fetchConfigValue(template, field.name)
+
+    private fun fetchConfigValue(template: LiliumConfig?, field: String): Any? {
+        val fetchedSourceTemplate = fetchField(template ?: return null, field)[template] ?: return null
+        return (fetchedSourceTemplate as ConfigEntry<*>).get()
+    }
+
     private fun postProcessing(
-        o: Any,
+        target: Any,
         configEntry: ConfigEntry<*>,
-        parentTemplate: LiliumConfig?,
         argType: Type,
         configChain: CircularDependency,
         actionWhenParameterized: Consumer<ParameterizedType>,
-        actionWhenEntry: Consumer<LiliumConfig>,
+        actionWhenEntry: Runnable,
         actionWhenData: Runnable
     ) {
         // 当ConfigEntry为空时创建其依赖
         if (configEntry.get() == null) {
-
             if (argType is ParameterizedType) {
                 // 当依赖是泛型而不是Entry也不是数据
                 actionWhenParameterized.accept(argType)
@@ -415,9 +486,9 @@ class ConfigFramework : ReflectionFramework() {
 
                     // 提交当前的依赖项，同时检查是否循环依赖
                     // 用以快速打断循环依赖，避免发生StackOverflowError
-                    configChain.pushRequirement(o.javaClass.name, RequiredDependency().add(actualClass.name))
+                    configChain.pushRequirement(target.javaClass.name, RequiredDependency().add(actualClass.name))
 
-                    actionWhenEntry.accept(parentTemplate)
+                    actionWhenEntry.run()
                 } else {
                     // 当依赖是数据而不是Entry
                     actionWhenData.run()
@@ -436,9 +507,9 @@ class ConfigFramework : ReflectionFramework() {
             if (fieldValue == null || fieldValue == ConfigEntry.ENTRY) null else fieldValue as ConfigEntry<*>
         configEntry = configEntry ?: field.type.getConstructor().newInstance() as ConfigEntry<*>
         // 设置此ConfigEntry的key为字段名称，要用它来获取多个相同模板的数据以及debug
-        fetchField(configEntry, "key").set(configEntry, field.name)
+        fetchField(configEntry, "key")[configEntry] = field.name
         // 将配置设置回字段
-        fetchField(target, field).set(target, configEntry)
+        fetchField(target, field)[target] = configEntry
         return configEntry
     }
 
@@ -478,11 +549,11 @@ class ConfigFramework : ReflectionFramework() {
             fetchField(another, it.name).set(another, newConfigEntry)
 
             // 将配置内容深拷贝到新的ConfigEntry
-            postProcessing(o, newConfigEntry, null, getArgType(it), configChain,
+            postProcessing(o, newConfigEntry, getArgType(it), configChain,
                 {
                     // TODO 泛型复制
                 },
-                { template ->
+                {
                     // 当依赖是Entry而不是数据
 
                     // 处理此配置的依赖

@@ -1,9 +1,7 @@
 package com.github.cao.awa.lilium.framework.reflection;
 
-import com.alibaba.fastjson2.util.ParameterizedTypeImpl;
 import com.github.cao.awa.apricot.annotations.auto.Auto;
 import com.github.cao.awa.apricot.resource.loader.ResourceLoader;
-import com.github.cao.awa.lilium.bootstrap.TestObj;
 import com.github.cao.awa.lilium.framework.loader.JarSearchLoader;
 import com.github.cao.awa.trtr.framework.accessor.method.MethodAccess;
 import com.github.cao.awa.trtr.framework.exception.NoAutoAnnotationException;
@@ -146,10 +144,20 @@ public abstract class ReflectionFramework {
     }
 
     public static void checkType(Class<?> target, Object object, Consumer<Object> consumer) {
+        if (object == null) {
+            return;
+        }
         if (target != object.getClass()) {
             throw new ClassCastException("The parameter has specified '" + target + "' but got '" + object.getClass() + "'");
         }
         consumer.accept(object);
+    }
+
+    public static <T> T checkOrDiscard(Class<?> target, T object) {
+        if (object == null || target != object.getClass()) {
+            return null;
+        }
+        return object;
     }
 
     public static Type getArgType(Field field) {
@@ -169,5 +177,9 @@ public abstract class ReflectionFramework {
 
     public static Field[] getFields(Object object) {
         return object.getClass().getDeclaredFields();
+    }
+
+    public static boolean hasField(Object object, String name) {
+        return EntrustEnvironment.trys(() -> object.getClass().getDeclaredField(name)) != null;
     }
 }
