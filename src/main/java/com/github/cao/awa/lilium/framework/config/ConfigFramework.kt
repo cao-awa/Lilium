@@ -5,9 +5,9 @@ import com.alibaba.fastjson2.JSONObject
 import com.github.cao.awa.apricot.resource.loader.ResourceLoader
 import com.github.cao.awa.apricot.util.collection.ApricotCollectionFactor
 import com.github.cao.awa.apricot.util.io.IOUtil
-import com.github.cao.awa.lilium.annotations.auto.config.AutoConfig
-import com.github.cao.awa.lilium.annotations.auto.config.AutoConfigTemplate
-import com.github.cao.awa.lilium.annotations.auto.config.UseConfigTemplate
+import com.github.cao.awa.lilium.annotation.auto.config.AutoConfig
+import com.github.cao.awa.lilium.annotation.auto.config.AutoConfigTemplate
+import com.github.cao.awa.lilium.annotation.auto.config.UseConfigTemplate
 import com.github.cao.awa.lilium.config.LiliumConfig
 import com.github.cao.awa.lilium.config.inherite.InheritedValue
 import com.github.cao.awa.lilium.config.instance.ConfigEntry
@@ -49,7 +49,10 @@ class ConfigFramework : ReflectionFramework() {
     override fun work() = loadTemplates()
 
     private fun extractDefaultTemplates() {
-        if (!File("./configs/index.json").isFile) {
+        val indexFile = File("./configs/index.json")
+        if (!indexFile.isFile) {
+            indexFile.parentFile.mkdirs()
+            indexFile.createNewFile()
             IOUtil.write(
                 FileOutputStream("./configs/index.json"),
                 ResourceLoader.stream("configs/index.json")
@@ -291,7 +294,6 @@ class ConfigFramework : ReflectionFramework() {
                     val inheritedTemplate = inheritedData[0]
                     val targetKey = if (inheritedData.size > 1) inheritedData[1] else inTemplateFileKey
                     fetchField(configEntry, "value")[configEntry] = InheritedValue(inheritedTemplate, targetKey)
-                    println(fetchField(configEntry, "value")[configEntry])
                     return@postProcessing
                 }
 
@@ -421,7 +423,7 @@ class ConfigFramework : ReflectionFramework() {
                     target::class.java.name
                 )
             }
-            ensureAccessible(it, target)
+            ensureAccessible(it)
 
             var template = usedTemplate
 
@@ -681,7 +683,7 @@ class ConfigFramework : ReflectionFramework() {
         // 设置此ConfigEntry的key为字段名称，要用它来获取多个相同模板的数据以及debug
         fetchField(configEntry, "key")[configEntry] = field.name
         // 将配置设置回字段
-        fetchField(target, field)[target] = configEntry
+        fetchField(field)[target] = configEntry
         return configEntry
     }
 

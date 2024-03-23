@@ -1,5 +1,6 @@
 package com.github.cao.awa.apricot.util.collection;
 
+import com.github.cao.awa.lilium.collection.timed.TimedList;
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Sets;
@@ -65,6 +66,14 @@ public class ApricotCollectionFactor {
 
     public static <V> ObjectArrayList<V> arrayList(List<V> delegate) {
         return new ObjectArrayList<>(delegate);
+    }
+
+    public static <V> TimedList<V> timedList(long removeTime) {
+        return new TimedList<>(removeTime);
+    }
+
+    public static <V> TimedList<V> timedList(List<V> delegate, long removeTime) {
+        return new TimedList<>(delegate, removeTime);
     }
 
     public static <V> LinkedList<V> linkedList() {

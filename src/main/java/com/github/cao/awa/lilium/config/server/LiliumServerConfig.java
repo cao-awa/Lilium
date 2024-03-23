@@ -1,7 +1,7 @@
 package com.github.cao.awa.lilium.config.server;
 
-import com.github.cao.awa.lilium.annotations.auto.config.AutoConfig;
-import com.github.cao.awa.lilium.annotations.auto.config.UseConfigTemplate;
+import com.github.cao.awa.lilium.annotation.auto.config.AutoConfig;
+import com.github.cao.awa.lilium.annotation.auto.config.UseConfigTemplate;
 import com.github.cao.awa.lilium.config.LiliumConfig;
 import com.github.cao.awa.lilium.config.bootstrap.LiliumNetworkConfig;
 import com.github.cao.awa.lilium.config.instance.ConfigEntry;

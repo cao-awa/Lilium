@@ -10,7 +10,6 @@ import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnv
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
@@ -108,12 +107,6 @@ public abstract class ReflectionFramework {
     }
 
     public static Field ensureAccessible(@NotNull Field field) {
-        return ensureAccessible(field,
-                null
-        );
-    }
-
-    public static Field ensureAccessible(@NotNull Field field, @Nullable Object obj) {
         field.trySetAccessible();
         if (Modifier.isFinal(field.getModifiers())) {
             try {
@@ -126,23 +119,23 @@ public abstract class ReflectionFramework {
         return field;
     }
 
-    public static Field fetchField(Class<?> clazz, @NotNull Object object, @NotNull String key) {
+    public static Field fetchField(Class<?> clazz, @NotNull String key) {
         if (clazz == null) {
             return null;
         }
-        return EntrustEnvironment.trys(() -> ensureAccessible(clazz.getDeclaredField(key), object), e -> {
-            return fetchField(clazz.getSuperclass(), object, key);
+        return EntrustEnvironment.trys(() -> ensureAccessible(clazz.getDeclaredField(key)), e -> {
+            return fetchField(clazz.getSuperclass(), key);
         });
     }
 
     public static Field fetchField(@NotNull Object object, @NotNull String key) {
-        return EntrustEnvironment.trys(() -> ensureAccessible(object.getClass().getDeclaredField(key), object), e -> {
-            return fetchField(object.getClass().getSuperclass(), object, key);
+        return EntrustEnvironment.trys(() -> ensureAccessible(object.getClass().getDeclaredField(key)), e -> {
+            return fetchField(object.getClass().getSuperclass(), key);
         });
     }
 
-    public static Field fetchField(@NotNull Object object, @NotNull Field field) {
-        return EntrustEnvironment.trys(() -> ensureAccessible(field, object));
+    public static Field fetchField(@NotNull Field field) {
+        return EntrustEnvironment.trys(() -> ensureAccessible(field));
     }
 
     public static Type[] getGenericType(@NotNull ParameterizedType parameterized) {
@@ -200,6 +193,10 @@ public abstract class ReflectionFramework {
 
     public static Field[] getFields(Object object) {
         return object.getClass().getDeclaredFields();
+    }
+
+    public static Field[] getFields(Class<?> clazz) {
+        return clazz.getDeclaredFields();
     }
 
     public static boolean hasField(Object object, String name) {

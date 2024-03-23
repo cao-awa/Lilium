@@ -1,7 +1,7 @@
 package com.github.cao.awa.lilium.config.constant;
 
-import com.github.cao.awa.lilium.annotations.auto.config.AutoConfig;
-import com.github.cao.awa.lilium.annotations.auto.config.UseConfigTemplate;
+import com.github.cao.awa.lilium.annotation.auto.config.AutoConfig;
+import com.github.cao.awa.lilium.annotation.auto.config.UseConfigTemplate;
 import com.github.cao.awa.lilium.config.LiliumConfig;
 import com.github.cao.awa.lilium.config.instance.ConfigEntry;
 import com.github.cao.awa.lilium.config.template.constants.LiliumConstantsConfigTemplate;
@@ -20,4 +20,6 @@ public class LiliumConstantsConfig extends LiliumConfig {
     public final ConfigEntry<Integer> intMax = ConfigEntry.entry();
     @AutoConfig("long_max")
     public final ConfigEntry<Long> longMax = ConfigEntry.entry();
+    @AutoConfig("server_port")
+    public final ConfigEntry<Integer> serverPort = ConfigEntry.entry();
 }

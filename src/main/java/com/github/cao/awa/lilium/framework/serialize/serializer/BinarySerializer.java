@@ -11,8 +11,4 @@ public abstract class BinarySerializer<T> {
     public abstract void serialize(T object, ByteArrayOutputStream output) throws IOException;
 
     public abstract T deserialize(BytesReader reader) throws IllegalAccessException;
-
-    public <X> X getAs(Object object, Class<X> clazz) {
-        return EntrustEnvironment.trys(() -> clazz.cast(object));
-    }
 }

@@ -2,12 +2,11 @@ package com.github.cao.awa.lilium.framework.serialize
 
 import com.github.cao.awa.apricot.io.bytes.reader.BytesReader
 import com.github.cao.awa.apricot.util.collection.ApricotCollectionFactor
-import com.github.cao.awa.lilium.annotations.auto.serialize.AutoSerializer
+import com.github.cao.awa.lilium.annotation.auto.serialize.AutoSerializer
 import com.github.cao.awa.lilium.framework.reflection.ReflectionFramework
 import com.github.cao.awa.lilium.framework.serialize.serializer.BinarySerializer
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment
 import java.io.ByteArrayOutputStream
-import java.lang.reflect.Field
 import java.util.*
 
 class BinarySerializeFramework : ReflectionFramework() {
@@ -48,7 +47,7 @@ class BinarySerializeFramework : ReflectionFramework() {
         try {
             ByteArrayOutputStream().use { output ->
                 for (field in o.javaClass.declaredFields) {
-                    ensureAccessible(field!!, o)
+                    ensureAccessible(field!!)
                     getSerializer(field.type).serialize(EntrustEnvironment.cast(o), output)
                 }
                 return output.toByteArray()
@@ -74,7 +73,7 @@ class BinarySerializeFramework : ReflectionFramework() {
         val reader = BytesReader.of(data)
 
         for (field in o.javaClass.declaredFields) {
-            ensureAccessible(field!!, o)
+            ensureAccessible(field!!)
             EntrustEnvironment.trys {
                 field[o] = getSerializer(field.type).deserialize(reader)
             }

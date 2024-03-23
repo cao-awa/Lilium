@@ -10,5 +10,13 @@
         "LiliumNetworkConfigTemplate": "lilium-bootstrap-network.json"
       }
     }
+  },
+  "client": {
+    "LiliumClientConfigTemplate": "lilium-client.json"
+  },
+  "network": {
+    "router": {
+      "RequestRouterConfigTemplate": "request-router.json"
+    }
   }
 }

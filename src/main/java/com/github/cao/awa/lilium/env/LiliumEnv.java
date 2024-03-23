@@ -1,22 +1,57 @@
 package com.github.cao.awa.lilium.env;
 
+import com.github.cao.awa.apricot.util.time.TimeUtil;
+import com.github.cao.awa.lilium.client.LiliumClient;
 import com.github.cao.awa.lilium.framework.config.ConfigFramework;
+import com.github.cao.awa.lilium.framework.network.packet.PacketFramework;
 import com.github.cao.awa.lilium.framework.serialize.BinarySerializeFramework;
+import com.github.cao.awa.lilium.network.io.client.LiliumClientNetworkIo;
+import com.github.cao.awa.lilium.network.packet.inbound.disconnet.TryDisconnectPacket;
 import com.github.cao.awa.lilium.server.LiliumServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class LiliumEnv {
+    private static final Logger LOGGER = LogManager.getLogger("LiliumEnv");
+    public static LiliumServer SERVER;
     public static final ConfigFramework CONFIG_FRAMEWORK = new ConfigFramework();
     public static final BinarySerializeFramework BINARY_SERIALIZE_FRAMEWORK = new BinarySerializeFramework();
+    public static final PacketFramework PACKET_FRAMEWORK = new PacketFramework();
 
-    public static void bootstrap() {
+    private static void bootstrapFrameworks() {
         CONFIG_FRAMEWORK.work();
         BINARY_SERIALIZE_FRAMEWORK.work();
+        PACKET_FRAMEWORK.work();
+    }
 
-        System.out.println(Integer.MAX_VALUE);
-        System.out.println(Long.MAX_VALUE);
+    public static void bootstrapServer() {
+        bootstrapFrameworks();
 
-        LiliumServer server = new LiliumServer();
+        SERVER = new LiliumServer();
 
+        try {
+            SERVER.bootstrap();
+        } catch (Exception e) {
+            LOGGER.error("Failed to bootstrap the server", e);
+        }
+    }
 
+    public static void bootstrapClient() {
+        bootstrapFrameworks();
+
+        LiliumClient client = new LiliumClient(router -> {
+            TryDisconnectPacket disconnectPacket = new TryDisconnectPacket("Wwwww");
+            router.send(disconnectPacket);
+        });
+
+        try {
+            new LiliumClientNetworkIo(client).connect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        bootstrapClient();
     }
 }
