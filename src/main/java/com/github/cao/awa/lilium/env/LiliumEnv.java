@@ -12,6 +12,11 @@ public class LiliumEnv {
         CONFIG_FRAMEWORK.work();
         BINARY_SERIALIZE_FRAMEWORK.work();
 
+        System.out.println(Integer.MAX_VALUE);
+        System.out.println(Long.MAX_VALUE);
+
         LiliumServer server = new LiliumServer();
+
+
     }
 }

@@ -2,6 +2,7 @@ package com.github.cao.awa.lilium.framework.reflection;
 
 import com.github.cao.awa.apricot.annotations.auto.Auto;
 import com.github.cao.awa.apricot.resource.loader.ResourceLoader;
+import com.github.cao.awa.apricot.util.collection.ApricotCollectionFactor;
 import com.github.cao.awa.lilium.framework.loader.JarSearchLoader;
 import com.github.cao.awa.trtr.framework.accessor.method.MethodAccess;
 import com.github.cao.awa.trtr.framework.exception.NoAutoAnnotationException;
@@ -22,7 +23,9 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public abstract class ReflectionFramework {
     private static final Logger LOGGER = LogManager.getLogger("ReflectionFramework");
@@ -42,6 +45,15 @@ public abstract class ReflectionFramework {
         }
         modifierField.setAccessible(true);
         return modifierField;
+    });
+    private static final Map<Class<?>, Map<Class<?>, Function<Object, Object>>> SPECIALLY_CAST = EntrustEnvironment.operation(ApricotCollectionFactor.hashMap(), map -> {
+        Map<Class<?>, Function<Integer, Object>> integerCasts = ApricotCollectionFactor.hashMap();
+        integerCasts.put(Long.class, i -> i);
+        map.put(Integer.class, EntrustEnvironment.cast(integerCasts));
+
+        Map<Class<?>, Function<Long, Object>> longCasts = ApricotCollectionFactor.hashMap();
+        longCasts.put(Integer.class, Long::intValue);
+        map.put(Long.class, EntrustEnvironment.cast(longCasts));
     });
     private static final Reflections REFLECTIONS = EntrustEnvironment.trys(() -> {
         File liliumJar = new File(URLDecoder.decode(
@@ -148,13 +160,24 @@ public abstract class ReflectionFramework {
             return;
         }
         if (target != object.getClass()) {
-            throw new ClassCastException("The parameter has specified '" + target + "' but got '" + object.getClass() + "'");
+            Object casted = EntrustEnvironment.trys(() -> SPECIALLY_CAST.get(object.getClass()).get(target).apply(object));
+            if (casted == null) {
+                throw new ClassCastException("The parameter has specified '" + target + "' but got '" + object.getClass() + "'");
+            }
+            consumer.accept(casted);
         }
         consumer.accept(object);
     }
 
     public static <T> T checkOrDiscard(Class<?> target, T object) {
         if (object == null || target != object.getClass()) {
+            return null;
+        }
+        return object;
+    }
+
+    public static <T> T checkOrDiscard(Class<?> target, T object, Class<?> except) {
+        if ((object == null || (target != object.getClass() && object.getClass() != except))) {
             return null;
         }
         return object;

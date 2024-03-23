@@ -33,7 +33,7 @@ public class WrongConfigTemplateException extends RuntimeException {
         builder.append("Processing the field '")
                 .append(field.getName())
                 .append("' in config template '")
-                .append(templateClass)
+                .append(templateClass.getName())
                 .append("'");
         return builder.toString();
     }

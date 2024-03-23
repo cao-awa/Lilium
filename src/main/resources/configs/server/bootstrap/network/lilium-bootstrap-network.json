@@ -1,5 +1,6 @@
 {
   "metadata": "@INHERITED:MetadataConfigTemplate",
-  "network": "@INHERITED:LiliumNetworkConfigTemplate"
+  "bind-port": 45678,
+  "use-epoll": true
 }
 

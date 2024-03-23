@@ -1,0 +1,14 @@
+{
+  "MetadataConfigTemplate": "config-metadata.json",
+  "constant": {
+    "C": "lilium-constants.json"
+  },
+  "server": {
+    "LiliumServerConfigTemplate": "lilium-server.json",
+    "bootstrap": {
+      "network": {
+        "LiliumNetworkConfigTemplate": "lilium-bootstrap-network.json"
+      }
+    }
+  }
+}

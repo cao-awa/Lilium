@@ -6,6 +6,6 @@ import com.github.cao.awa.lilium.config.server.LiliumServerConfig;
 import com.github.cao.awa.lilium.config.template.ConfigTemplate;
 
 @Auto
-@AutoConfigTemplate("./configs/server/lilium-server.json")
+@AutoConfigTemplate("LiliumServerConfigTemplate")
 public class LiliumServerConfigTemplate extends ConfigTemplate<LiliumServerConfig> {
 }

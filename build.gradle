@@ -53,6 +53,13 @@ dependencies {
 //    options.compilerArgs += ['--enable-preview']
 //}
 
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "utf-8"
+}
+tasks.withType(Javadoc).configureEach {
+    options.encoding = "utf-8"
+}
+
 java {
     withSourcesJar()
 }

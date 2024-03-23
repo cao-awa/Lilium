@@ -2,12 +2,14 @@ package com.github.cao.awa.lilium.framework.config
 
 import com.alibaba.fastjson2.JSONArray
 import com.alibaba.fastjson2.JSONObject
+import com.github.cao.awa.apricot.resource.loader.ResourceLoader
 import com.github.cao.awa.apricot.util.collection.ApricotCollectionFactor
 import com.github.cao.awa.apricot.util.io.IOUtil
 import com.github.cao.awa.lilium.annotations.auto.config.AutoConfig
 import com.github.cao.awa.lilium.annotations.auto.config.AutoConfigTemplate
 import com.github.cao.awa.lilium.annotations.auto.config.UseConfigTemplate
 import com.github.cao.awa.lilium.config.LiliumConfig
+import com.github.cao.awa.lilium.config.inherite.InheritedValue
 import com.github.cao.awa.lilium.config.instance.ConfigEntry
 import com.github.cao.awa.lilium.config.template.ConfigTemplate
 import com.github.cao.awa.lilium.debug.dependency.circular.CircularDependency
@@ -18,9 +20,11 @@ import com.github.cao.awa.lilium.exception.auto.config.WrongConfigTemplateExcept
 import com.github.cao.awa.lilium.framework.reflection.ReflectionFramework
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment
 import io.netty.util.internal.shaded.org.jctools.queues.MessagePassingQueue.Consumer
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.FileReader
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
@@ -35,14 +39,61 @@ class ConfigFramework : ReflectionFramework() {
         val LOGGER: Logger = LogManager.getLogger("ConfigFramework")
     }
 
+    private val templatePaths: MutableMap<String, String> = ApricotCollectionFactor.hashMap()
+    private val nameToTemplate: MutableMap<String, LiliumConfig> = ApricotCollectionFactor.hashMap()
     private val templates: MutableMap<Class<out ConfigTemplate<*>>, ConfigTemplate<*>> =
         ApricotCollectionFactor.hashMap()
-    private val configToTemplates: MutableMap<Class<out LiliumConfig>, LiliumConfig> =
+    private val configToTemplate: MutableMap<Class<out LiliumConfig>, LiliumConfig> =
         ApricotCollectionFactor.hashMap()
 
     override fun work() = loadTemplates()
 
+    private fun extractDefaultTemplates() {
+        if (!File("./configs/index.json").isFile) {
+            IOUtil.write(
+                FileOutputStream("./configs/index.json"),
+                ResourceLoader.stream("configs/index.json")
+            )
+        }
+        extractDefaultTemplates(
+            "configs/",
+            JSONObject.parse(IOUtil.read(FileInputStream("./configs/index.json")))
+        )
+    }
+
+    private fun extractDefaultTemplates(prefix: String, data: JSONObject) {
+        File("./$prefix").mkdirs()
+
+        for (entry in data) {
+            val key = entry.key
+            val value = entry.value
+            if (value is JSONObject) {
+                extractDefaultTemplates("$prefix$key/", value)
+            } else {
+                val location = "$prefix$value"
+                val file = File("./$location")
+                if (!file.isFile) {
+                    EntrustEnvironment.trys({
+                        file.createNewFile()
+                        IOUtil.write(
+                            FileOutputStream("./$location"),
+                            ResourceLoader.stream(location)
+                        )
+                    }, { ex ->
+                        LOGGER.warn(
+                            "The template file for '{}' unable to extract",
+                            key
+                        )
+                    })
+                }
+                this.templatePaths[key] = location
+            }
+        }
+    }
+
     private fun loadTemplates() {
+        extractDefaultTemplates()
+
         reflection().getTypesAnnotatedWith(AutoConfigTemplate::class.java)
             .filter { template ->
                 template == ConfigTemplate::class.java
@@ -60,7 +111,16 @@ class ConfigFramework : ReflectionFramework() {
                 val config = configType.getConstructor().newInstance() as LiliumConfig
 
                 // 读取模板格式
-                val json = JSONObject.parse(IOUtil.read(FileReader(templateData.value, StandardCharsets.UTF_8)))
+                val json = EntrustEnvironment.get({
+                    JSONObject.parse(
+                        IOUtil.read(
+                            FileReader(
+                                this.templatePaths[templateData.value],
+                                StandardCharsets.UTF_8
+                            )
+                        )
+                    )
+                }, JSONObject.of())
 
                 // 创建模板
                 try {
@@ -73,8 +133,8 @@ class ConfigFramework : ReflectionFramework() {
                 } catch (ex: WrongConfigTemplateException) {
                     LOGGER.warn(
                         "Failed to resolve the template '{}' for config '{}'",
-                        templateClass.name,
-                        config::class.java.name,
+                        templateClass.simpleName,
+                        config::class.java.simpleName,
                         ex
                     )
                 }
@@ -83,7 +143,8 @@ class ConfigFramework : ReflectionFramework() {
                 // 给模板设置配置内容并存储备用
                 fetchField(template, "config").set(template, config)
                 this.templates[templateClass] = template
-                this.configToTemplates[configType] = config
+                this.configToTemplate[configType] = config
+                this.nameToTemplate[templateData.value] = config
             }
     }
 
@@ -100,6 +161,14 @@ class ConfigFramework : ReflectionFramework() {
 
             // 获取配置要求的类型
             val argType = getArgType(field)
+
+            val useTemplate = field.getAnnotation(AutoConfig::class.java)
+
+            val inTemplateFileKey = if (useTemplate.equals("")) {
+                field.name
+            } else {
+                useTemplate.value
+            }
 
             postProcessing(target, configEntry, argType, configChain,
                 { parameterized ->
@@ -142,8 +211,7 @@ class ConfigFramework : ReflectionFramework() {
                                 EntrustEnvironment.reThrow(
                                     { checkType(listTemplate, value, newDelegate::add) },
                                     ClassCastException::class.java,
-                                    { FieldParamMismatchException(field, listTemplate, value::class.java, it) }
-                                )
+                                ) { FieldParamMismatchException(field, listTemplate, value::class.java, it) }
                             }
                         }
                         fetchField(configEntry, "value").set(configEntry, newDelegate)
@@ -156,8 +224,7 @@ class ConfigFramework : ReflectionFramework() {
                         }
 
                         // 创建并确保已经创建了集合对象
-                        val newDelegate: Object2ObjectOpenHashMap<Any, Any> =
-                            ApricotCollectionFactor.hashMap() ?: return@postProcessing
+                        val newDelegate: MutableMap<Any, Any> = ApricotCollectionFactor.hashMap()
 
                         // 添加数据并设置ConfigEntry的值
                         for (entry in getTemplateJsonData(getter, field)) {
@@ -173,6 +240,23 @@ class ConfigFramework : ReflectionFramework() {
                     // 配置对象内所有字段都应为ConfigEntry<LiliumConfig>
                     if (isTemplateDataPresent(getter, field)) {
                         try {
+                            val templateData = getTemplateData(getter, field)
+
+                            // @INHERITED 用于"指引"这个数据应该从哪个模板的默认数据获取
+                            // 它没有实际的配置意义，只是用来指引数据来源，避免一些适合在生产环境查代码
+                            if (templateData is String && templateData.toString().startsWith("@INHERITED")) {
+                                val indicates = templateData.substring(11)
+                                if (this.templatePaths[indicates] == null) {
+                                    LOGGER.warn(
+                                        "The template '{}' that indicated by '{}' in template '{}' has not found, may not be indicated correctly",
+                                        indicates,
+                                        inTemplateFileKey,
+                                        target::class.java.simpleName
+                                    )
+                                }
+                                return@postProcessing
+                            }
+
                             // 处理此配置要求的其他依赖
                             createTemplate(
                                 configEntry.get() as LiliumConfig,
@@ -185,13 +269,43 @@ class ConfigFramework : ReflectionFramework() {
                             // 失败：后续创建遇到此字段都从这个字段的模板拿
                             // 其实就是一个覆盖的功能，组装时优先选择来自同一个文件的
                         }
+                    } else {
+                        // 不存在"指引"也不存在实际的数据时提示，不影响后续解析
+                        LOGGER.warn(
+                            "The template file of '{}' has missing required data '{}' that should inherited from '{}'",
+                            target::class.java.simpleName,
+                            inTemplateFileKey,
+                            toClass(getArgType(field)).simpleName
+                        )
                     }
-                },
-                {
-                    // 当依赖是数据而不是Entry
-                    fetchField(configEntry, "value").set(configEntry, getTemplateData(getter, field))
                 }
-            )
+            ) {
+                // 当依赖是数据而不是Entry
+
+                val requiredType = toClass(argType)
+                val value = getTemplateData(getter, field)
+
+                // 此处的 @INHERITED 与ConfigEntry的完全不同，它会实际地从所指引的目标获取值
+                if (value is String && value.startsWith("@INHERITED")) {
+                    val inheritedData = value.substring(11).split("#")
+                    val inheritedTemplate = inheritedData[0]
+                    val targetKey = if (inheritedData.size > 1) inheritedData[1] else inTemplateFileKey
+                    fetchField(configEntry, "value")[configEntry] = InheritedValue(inheritedTemplate, targetKey)
+                    println(fetchField(configEntry, "value")[configEntry])
+                    return@postProcessing
+                }
+
+                // 当类型不正确时构建异常链，用以debug
+                EntrustEnvironment.reThrow(
+                    {
+                        checkType(
+                            requiredType,
+                            value
+                        ) { fetchField(configEntry, "value")[configEntry] = it }
+                    },
+                    ClassCastException::class.java,
+                ) { FieldParamMismatchException(field, requiredType, value::class.java, it) }
+            }
         }
     }
 
@@ -325,7 +439,7 @@ class ConfigFramework : ReflectionFramework() {
                                 )
                             )
                         )
-                    ) && getArgType(configEntry) == usedTemplate!!::class.java
+                    ) && getArgType(configEntry) == usedTemplate::class.java
                 ) {
                     template = (fetchField(
                         usedTemplate,
@@ -374,6 +488,14 @@ class ConfigFramework : ReflectionFramework() {
 
             val argType = getArgType(field)
 
+            val useTemplate = field.getAnnotation(AutoConfig::class.java)
+
+            val inTemplateFileKey = if (useTemplate.equals("")) {
+                field.name
+            } else {
+                useTemplate.value
+            }
+
             val creatingWithTemplate = {
                 // 当依赖是数据而不是Entry
 
@@ -385,7 +507,11 @@ class ConfigFramework : ReflectionFramework() {
                     val fetchedTemplate = fetchField(template, field.name)[template]
                     var fetchResult: Any? = null
                     if (fetchedTemplate != null && fetchedTemplate != ConfigEntry.ENTRY) {
-                        fetchResult = checkOrDiscard(requiredType, (fetchedTemplate as ConfigEntry<*>).get())
+                        fetchResult = checkOrDiscard(
+                            requiredType,
+                            (fetchedTemplate as ConfigEntry<*>).get(),
+                            InheritedValue::class.java
+                        )
                     }
 
                     // 当前模板找不到时从父模板的默认数据板尝试获取
@@ -396,11 +522,12 @@ class ConfigFramework : ReflectionFramework() {
                             fetchConfigValue(
                                 // 使用currentKey获取父模板的默认数据
                                 fetchConfig(
-                                    this.configToTemplates[parentTemplate::class.java]!! as? LiliumConfig,
+                                    this.configToTemplate[parentTemplate::class.java]!! as? LiliumConfig,
                                     currentKey
                                 ),
                                 field
-                            )
+                            ),
+                            InheritedValue::class.java
                         )
                     }
 
@@ -410,9 +537,37 @@ class ConfigFramework : ReflectionFramework() {
                         fetchResult = checkOrDiscard(
                             requiredType,
                             fetchConfigValue(
-                                this.configToTemplates[template::class.java]!!,
+                                this.configToTemplate[template::class.java]!!,
                                 field
+                            ),
+                            InheritedValue::class.java
+                        )
+                    }
+
+                    // 当获取结果是InheritedValue时说明它引用了其他模板的默认数据
+                    if (fetchResult is InheritedValue) {
+                        val inheritedValue = fetchResult
+                        val config: LiliumConfig? = this.nameToTemplate[inheritedValue.templateName]
+                        if (config == null) {
+                            LOGGER.warn(
+                                "The inherited data '{}' arent present that inherited by '{}' in template '{}'",
+                                inheritedValue.templateName,
+                                inTemplateFileKey,
+                                target::class.java.simpleName
                             )
+                        } else {
+                            fetchResult = EntrustEnvironment.get({
+                                fetchOrFindEntry(config, inheritedValue.key).get()
+                            }, null)
+                        }
+                    }
+
+                    if (fetchResult == null) {
+                        LOGGER.warn(
+                            "The data '{}'(named '{}') in config entry of '{}' could not be found or created",
+                            field.name,
+                            inTemplateFileKey,
+                            target::class.java.simpleName
                         )
                     }
 
@@ -425,7 +580,10 @@ class ConfigFramework : ReflectionFramework() {
 
                 // 当值存在时则设定
                 if (value != null) {
-                    fetchField(configEntry, "value").set(configEntry, value)
+                    checkType(
+                        toClass(argType),
+                        value
+                    ) { fetchField(configEntry, "value").set(configEntry, it) }
                 }
             }
 
@@ -445,6 +603,20 @@ class ConfigFramework : ReflectionFramework() {
                 creatingWithTemplate
             )
         }
+    }
+
+    private fun fetchOrFindEntry(target: Any, key: String): ConfigEntry<*> {
+        val field = fetchField(target, key)
+        if (field == null) {
+            for (renamedField in getFields(target).filter {
+                it.isAnnotationPresent(AutoConfig::class.java)
+            }) {
+                if (renamedField.getAnnotation(AutoConfig::class.java).value == key) {
+                    return renamedField[target] as ConfigEntry<*>
+                }
+            }
+        }
+        return field[target] as ConfigEntry<*>
     }
 
     private fun fetchConfig(template: LiliumConfig?, field: Field): LiliumConfig? = fetchConfig(template, field.name)

@@ -9,13 +9,13 @@ import com.github.cao.awa.lilium.event.Event;
 
 public class LiliumServer {
     @AutoConfig
-    private final ConfigEntry<LiliumServerConfig> config = ConfigEntry.entry();
+    public final ConfigEntry<LiliumServerConfig> config = ConfigEntry.entry();
 
     public LiliumServer() {
         LiliumConfig.create(this);
 
-        System.out.println(this.config.get().bootstrap.get().bindPort.get());
-        System.out.println(this.config.get().bootstrap.get().metadata.get().configVersion.get());
+        System.out.println(this.config.get().network.get().bindPort.get());
+        System.out.println(this.config.get().network.get().metadata.get().configVersion.get());
     }
 
     public void fireEvent(Event event) {

@@ -1,8 +1,10 @@
 package com.github.cao.awa.apricot.resource.loader;
 
 import com.github.cao.awa.apricot.annotations.Stable;
+import com.github.cao.awa.apricot.util.io.IOUtil;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URL;
 
@@ -16,10 +18,6 @@ public class ResourceLoader {
     public static URL url(String resource) {
         return ResourceLoader.class.getClassLoader()
                                    .getResource(resource);
-    }
-
-    public static File file(String resource) {
-        return new File(String.valueOf(ResourceLoader.class.getResource(resource)));
     }
 }
 

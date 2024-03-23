@@ -5,10 +5,13 @@ import com.github.cao.awa.lilium.annotations.auto.config.UseConfigTemplate;
 import com.github.cao.awa.lilium.config.LiliumConfig;
 import com.github.cao.awa.lilium.config.bootstrap.LiliumNetworkConfig;
 import com.github.cao.awa.lilium.config.instance.ConfigEntry;
+import com.github.cao.awa.lilium.config.metadata.MetadataConfig;
 import com.github.cao.awa.lilium.config.template.server.LiliumServerConfigTemplate;
 
 @UseConfigTemplate(LiliumServerConfigTemplate.class)
 public class LiliumServerConfig extends LiliumConfig {
-    @AutoConfig("bootstrap")
-    public final ConfigEntry<LiliumNetworkConfig> bootstrap = ConfigEntry.entry();
+    @AutoConfig("metadata")
+    public final ConfigEntry<MetadataConfig> metadata = ConfigEntry.entry();
+    @AutoConfig("network")
+    public final ConfigEntry<LiliumNetworkConfig> network = ConfigEntry.entry();
 }
