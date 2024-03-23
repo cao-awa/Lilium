@@ -1,6 +1,7 @@
-package com.github.cao.awa.apricot.annotations.auto;
+package com.github.cao.awa.lilium.annotation.auto.plugin;
 
 import com.github.cao.awa.apricot.annotations.Stable;
+import com.github.cao.awa.apricot.annotations.auto.Auto;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -10,9 +11,10 @@ import java.lang.annotation.Target;
 @Auto
 @Stable
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
+@Target({ElementType.TYPE})
 public @interface AutoPlugin {
+    String id();
     String name();
-
-    String uuid() default "";
+    String translationKey() default "";
+    String version() default "0.0.1";
 }

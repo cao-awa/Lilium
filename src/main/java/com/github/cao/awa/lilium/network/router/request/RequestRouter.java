@@ -121,7 +121,6 @@ public class RequestRouter extends NetworkRouter<UnsolvedPacket<?>> {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, UnsolvedPacket<?> msg) throws Exception {
         try {
-            System.out.println(msg);
             if (msg.requireCrypto()) {
                 if (this.transportLayer.crypto() instanceof NoCrypto) {
                     send(new OperationInvalidPacket("packet.crypto.required").receipt(msg.receipt()));

@@ -2,6 +2,6 @@ package com.github.cao.awa.lilium.event.handler;
 
 import com.github.cao.awa.lilium.event.Event;
 
-public abstract class EventHandler<E extends Event> {
-    public abstract void handle(E event);
+public interface EventHandler<E extends Event> {
+    void handle(E event);
 }

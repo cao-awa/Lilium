@@ -122,10 +122,10 @@ public abstract class Packet<T extends PacketHandler<T>> {
     public void inbound(RequestRouter router, T handler) {
         this.handler = handler;
         try {
-//            LiliumEnv.NETWORK_EVENT_FRAMWOEK.fireEvent(router,
-//                    handler,
-//                    this
-//            );
+            LiliumEnv.NETWORK_EVENT_FRAMEWORK.fireEvent(router,
+                    handler,
+                    this
+            );
         } catch (Exception e) {
             e.printStackTrace();
         }

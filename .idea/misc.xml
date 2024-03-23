@@ -5,6 +5,9 @@
       <item index="0" class="java.lang.String" itemvalue="com.github.cao.awa.apricot.annotations.auto.Auto" />
       <item index="1" class="java.lang.String" itemvalue="com.github.cao.awa.lilium.annotations.config.AutoConfig" />
     </list>
+    <writeAnnotations>
+      <writeAnnotation name="com.github.cao.awa.lilium.annotation.auto.network.unsolve.AutoData" />
+    </writeAnnotations>
   </component>
   <component name="FrameworkDetectionExcludesConfiguration">
     <file type="web" url="file://$PROJECT_DIR$" />

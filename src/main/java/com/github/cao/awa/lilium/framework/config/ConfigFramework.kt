@@ -49,19 +49,47 @@ class ConfigFramework : ReflectionFramework() {
     override fun work() = loadTemplates()
 
     private fun extractDefaultTemplates() {
-        val indexFile = File("./configs/index.json")
+        val indexFile = File("./configs/index/index.json")
         if (!indexFile.isFile) {
             indexFile.parentFile.mkdirs()
             indexFile.createNewFile()
             IOUtil.write(
-                FileOutputStream("./configs/index.json"),
-                ResourceLoader.stream("configs/index.json")
+                FileOutputStream("./configs/index/index.json"),
+                ResourceLoader.stream("configs/index/index.json")
             )
         }
+        loadPluginIndex("configs/index/plugin/", File("./configs/index/plugin"))
+
         extractDefaultTemplates(
             "configs/",
-            JSONObject.parse(IOUtil.read(FileInputStream("./configs/index.json")))
+            JSONObject.parse(IOUtil.read(FileInputStream("./configs/index/index.json")))
         )
+    }
+
+    private fun loadPluginIndex(prefix: String, file: File) {
+        for (index in file.listFiles()!!) {
+            if (index.isDirectory) {
+                loadPluginIndex("${prefix}${index.name}/", index)
+            } else if (index.isFile) {
+                loadPluginIndex(
+                    "configs/plugin/",
+                    JSONObject.parse(IOUtil.read(FileInputStream("./${prefix}${index.name}")))
+                )
+            }
+        }
+    }
+
+    private fun loadPluginIndex(prefix: String, data: JSONObject) {
+        for (entry in data) {
+            val key = entry.key
+            val value = entry.value
+            if (value is JSONObject) {
+                loadPluginIndex("$prefix$key/", value)
+            } else {
+                val location = "$prefix$value"
+                this.templatePaths[key] = location
+            }
+        }
     }
 
     private fun extractDefaultTemplates(prefix: String, data: JSONObject) {
