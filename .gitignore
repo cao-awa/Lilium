@@ -44,3 +44,4 @@ bin/
 ### Lilium Server ###
 /logs/
 /configs/
+/src/main/resources/secret/lilium/main/SECRET_PRIVATE
