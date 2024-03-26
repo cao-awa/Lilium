@@ -69,7 +69,7 @@ java {
 sourceSets {
     main {
         java {
-            exclude "src/main/resources/secret/kalmiagram/main/SECRET_PRIVATE"
+            exclude "src/main/resources/secret/lilium/main/SECRET_PRIVATE"
         }
     }
 }
