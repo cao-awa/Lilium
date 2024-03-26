@@ -45,3 +45,4 @@ bin/
 /logs/
 /configs/
 /src/main/resources/secret/lilium/main/SECRET_PRIVATE
+/secrets/main/SECRET_PRIVATE
