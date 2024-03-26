@@ -21,6 +21,7 @@ public class LiliumClient {
 
     public void router(RequestRouter router) {
         this.router = router;
+        router.client(this);
     }
 
     public RequestRouter router() {

@@ -1,4 +1,4 @@
-package com.github.cao.awa.lilium.plugin.internal.user.packet.inbound.register;
+package com.github.cao.awa.lilium.plugin.internal.core.user.packet.inbound.register;
 
 import com.github.cao.awa.apricot.annotations.auto.Auto;
 import com.github.cao.awa.apricot.io.bytes.reader.BytesReader;

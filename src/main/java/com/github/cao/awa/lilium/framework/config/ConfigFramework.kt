@@ -58,15 +58,19 @@ class ConfigFramework : ReflectionFramework() {
                 ResourceLoader.stream("configs/index/index.json")
             )
         }
-        loadPluginIndex("configs/index/plugin/", File("./configs/index/plugin"))
 
         extractDefaultTemplates(
             "configs/",
             JSONObject.parse(IOUtil.read(FileInputStream("./configs/index/index.json")))
         )
+
+        loadPluginIndex("configs/index/plugin/", File("./configs/index/plugin"))
     }
 
     private fun loadPluginIndex(prefix: String, file: File) {
+        if (!file.isDirectory) {
+            return
+        }
         for (index in file.listFiles()!!) {
             if (index.isDirectory) {
                 loadPluginIndex("${prefix}${index.name}/", index)

@@ -78,6 +78,7 @@ public class LiliumServerChannelInitializer extends ChannelInitializer<SocketCha
         ChannelPipeline pipeline = ch.pipeline();
         // Do decode.
         RequestRouter router = new RequestRouter().funeral(this :: inactive);
+        router.server(this.server);
         pipeline.addLast(new RequestDecoder(router));
         pipeline.addLast(new RequestEncoder(router));
         // Do handle.

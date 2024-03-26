@@ -1,4 +1,6 @@
 {
   "server_host": "127.0.0.1",
-  "server_port": "@INHERITED:C#server_port"
+  "server_port": "@INHERITED:C#server_port",
+  "use_epoll": true,
+  "use_cipher": "main"
 }

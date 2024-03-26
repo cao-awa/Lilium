@@ -2,9 +2,11 @@ package com.github.cao.awa.lilium.network.encode;
 
 import com.github.cao.awa.apricot.io.bytes.reader.BytesReader;
 import com.github.cao.awa.apricot.util.digger.MessageDigger;
+import com.github.cao.awa.apricot.util.encryption.Crypto;
 import com.github.cao.awa.kalmia.mathematic.base.Base256;
 import com.github.cao.awa.kalmia.mathematic.base.SkippedBase256;
 import com.github.cao.awa.lilium.attack.replay.ReplayAttack;
+import com.github.cao.awa.lilium.env.LiliumPreSharedCipher;
 import com.github.cao.awa.lilium.exception.network.attck.ReplayAttackException;
 import com.github.cao.awa.lilium.exception.network.invalid.InvalidPacketException;
 import com.github.cao.awa.lilium.network.packet.Packet;
@@ -20,11 +22,13 @@ import org.apache.logging.log4j.Logger;
 import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.List;
 
 public class RequestDecoder extends ByteToMessageDecoder {
     private static final Logger LOGGER = LogManager.getLogger("RequestDecoder");
+    private static final byte[] NO_SIGN = new byte[]{-1};
     private final RequestRouter router;
     private final ByteArrayOutputStream output = new ByteArrayOutputStream();
     private long lengthMarker = 0;
@@ -97,9 +101,26 @@ public class RequestDecoder extends ByteToMessageDecoder {
 
         byte[] digest = reader.read(reader.read());
 
+        // 验证签名
+        String useCipher = new String(reader.read(reader.read()), StandardCharsets.UTF_8);
+        PublicKey pubkey = LiliumPreSharedCipher.pubkeyManager.get(useCipher);
+        byte[] signature;
+        if (pubkey != null) {
+            signature = reader.read(Base256.tagFromBuf(reader.read(2)));
+        } else {
+            signature = NO_SIGN;
+        }
+
         // 读取整个数据包用来摘要
         reader.flag();
         byte[] remain = reader.all();
+
+        // 当有签名内容时才处理
+        if (!Arrays.equals(NO_SIGN, signature)) {
+            if (!Crypto.asymmetricVerify(remain, signature, pubkey)) {
+                throw new RuntimeException("The packet wasn't correctly signature using the cipher '" + useCipher + "'");
+            }
+        }
         reader.back();
 
         // 数据摘要，如果不一直则说明可能传递出错或被篡改

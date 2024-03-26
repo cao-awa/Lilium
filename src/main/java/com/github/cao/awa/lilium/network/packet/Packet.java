@@ -4,6 +4,7 @@ import com.github.cao.awa.apricot.annotations.auto.Auto;
 import com.github.cao.awa.apricot.identifier.BytesRandomIdentifier;
 import com.github.cao.awa.apricot.io.bytes.reader.BytesReader;
 import com.github.cao.awa.apricot.util.digger.MessageDigger;
+import com.github.cao.awa.apricot.util.encryption.Crypto;
 import com.github.cao.awa.apricot.util.time.TimeUtil;
 import com.github.cao.awa.kalmia.annotations.inaction.DoNotOverride;
 import com.github.cao.awa.kalmia.mathematic.base.Base256;
@@ -15,6 +16,8 @@ import com.github.cao.awa.viburnum.util.bytes.BytesUtil;
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * @param <T>
@@ -110,9 +113,17 @@ public abstract class Packet<T extends PacketHandler<T>> {
                 MessageDigger.Sha3.SHA_512
         );
 
+        byte[] signature = router.signature(payload);
+
+        String useCipher = router.useCipher();
+
         return router.encode(BytesUtil.concat(
                 new byte[]{(byte) digest.length},
                 digest,
+                new byte[]{(byte) useCipher.length()},
+                useCipher.getBytes(StandardCharsets.UTF_8),
+                Base256.tagToBuf(signature.length),
+                signature,
                 payload
         ));
     }

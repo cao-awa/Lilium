@@ -14,4 +14,8 @@ public class LiliumServerConfig extends LiliumConfig {
     public final ConfigEntry<MetadataConfig> metadata = ConfigEntry.entry();
     @AutoConfig("network")
     public final ConfigEntry<LiliumNetworkConfig> network = ConfigEntry.entry();
+    @AutoConfig("name")
+    public final ConfigEntry<String> name = ConfigEntry.entry();
+    @AutoConfig("use_cipher")
+    public final ConfigEntry<String> useCipher = ConfigEntry.entry();
 }

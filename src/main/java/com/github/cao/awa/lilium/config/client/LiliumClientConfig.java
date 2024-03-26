@@ -14,4 +14,6 @@ public class LiliumClientConfig extends LiliumConfig {
     public final ConfigEntry<Integer> serverPort = ConfigEntry.entry();
     @AutoConfig("use_epoll")
     public final ConfigEntry<Boolean> useEpoll = ConfigEntry.entry();
+    @AutoConfig("use_cipher")
+    public final ConfigEntry<String> useCipher = ConfigEntry.entry();
 }

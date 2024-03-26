@@ -6,19 +6,23 @@ import com.github.cao.awa.apricot.io.bytes.reader.BytesReader;
 import com.github.cao.awa.apricot.resource.loader.ResourceLoader;
 import com.github.cao.awa.apricot.thread.pool.ExecutorFactor;
 import com.github.cao.awa.apricot.util.collection.ApricotCollectionFactor;
+import com.github.cao.awa.apricot.util.encryption.Crypto;
 import com.github.cao.awa.apricot.util.io.IOUtil;
 import com.github.cao.awa.kalmia.identity.LongAndExtraIdentity;
 import com.github.cao.awa.kalmia.mathematic.base.Base256;
 import com.github.cao.awa.lilium.annotation.auto.config.AutoConfig;
+import com.github.cao.awa.lilium.client.LiliumClient;
 import com.github.cao.awa.lilium.config.instance.ConfigEntry;
 import com.github.cao.awa.lilium.config.network.router.RequestRouterConfig;
 import com.github.cao.awa.lilium.env.LiliumEnv;
+import com.github.cao.awa.lilium.env.LiliumPreSharedCipher;
 import com.github.cao.awa.lilium.exception.network.invalid.InvalidPacketException;
 import com.github.cao.awa.lilium.function.provider.Consumers;
 import com.github.cao.awa.lilium.network.encode.compress.RequestCompressor;
 import com.github.cao.awa.lilium.network.encode.compress.RequestCompressorType;
 import com.github.cao.awa.lilium.network.encode.crypto.CryptoTransportLayer;
 import com.github.cao.awa.lilium.network.encode.crypto.TransportLayerCrypto;
+import com.github.cao.awa.lilium.network.encode.crypto.asymmetric.AsymmetricCrypto;
 import com.github.cao.awa.lilium.network.encode.crypto.symmetric.no.NoCrypto;
 import com.github.cao.awa.lilium.network.packet.Packet;
 import com.github.cao.awa.lilium.network.packet.UnsolvedPacket;
@@ -31,6 +35,7 @@ import com.github.cao.awa.lilium.network.packet.inbound.invalid.operation.Operat
 import com.github.cao.awa.lilium.network.router.NetworkRouter;
 import com.github.cao.awa.lilium.network.router.request.meta.RequestRouterMetadata;
 import com.github.cao.awa.lilium.network.router.request.status.RequestState;
+import com.github.cao.awa.lilium.server.LiliumServer;
 import com.github.cao.awa.viburnum.util.bytes.BytesUtil;
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.affair.Affair;
 import com.github.zhuaidadaya.rikaishinikui.handler.universal.entrust.EntrustEnvironment;
@@ -51,6 +56,7 @@ import java.util.function.Consumer;
 
 public class RequestRouter extends NetworkRouter<UnsolvedPacket<?>> {
     private static final Logger LOGGER = LogManager.getLogger("RequestRouter");
+    private static final byte[] NO_SIGN = new byte[]{-1};
     private final ExecutorService executor = ExecutorFactor.intensiveIo();
     private final Map<RequestState, PacketHandler<?>> handlers = EntrustEnvironment.operation(ApricotCollectionFactor.hashMap(),
             handlers -> {
@@ -74,7 +80,8 @@ public class RequestRouter extends NetworkRouter<UnsolvedPacket<?>> {
     private final RequestCompressor compressor = new RequestCompressor();
     private final Affair funeral = Affair.empty();
     private LongAndExtraIdentity accessIdentity;
-
+    private LiliumServer server;
+    private LiliumClient client;
     private final RequestRouterMetadata metadata = RequestRouterMetadata.create();
     @AutoConfig
     public final ConfigEntry<RequestRouterConfig> config = ConfigEntry.entry();
@@ -87,6 +94,22 @@ public class RequestRouter extends NetworkRouter<UnsolvedPacket<?>> {
         this.activeCallback = activeCallback;
         setStates(RequestState.HELLO);
         LiliumEnv.CONFIG_FRAMEWORK.createConfig(this);
+    }
+
+    public void server(LiliumServer server) {
+        this.server = server;
+    }
+
+    public LiliumServer server() {
+        return this.server;
+    }
+
+    public void client(LiliumClient client) {
+        this.client = client;
+    }
+
+    public LiliumClient client() {
+        return this.client;
     }
 
     public LongAndExtraIdentity accessIdentity() {
@@ -165,7 +188,7 @@ public class RequestRouter extends NetworkRouter<UnsolvedPacket<?>> {
         this.activeCallback.accept(this);
         this.context.channel()
                 .closeFuture()
-                .addListener(this :: disconnect);
+                .addListener(this::disconnect);
     }
 
     public void disconnect() {
@@ -285,5 +308,36 @@ public class RequestRouter extends NetworkRouter<UnsolvedPacket<?>> {
 
     public RequestRouterMetadata metadata() {
         return this.metadata;
+    }
+
+    public byte[] signature(byte[] content) {
+        try {
+            String useCipher = useCipher();
+
+            if (useCipher != null) {
+                return Crypto.asymmetricSign(content,
+                        LiliumPreSharedCipher.prikeyManager.get(
+                                useCipher
+                        ));
+            }
+        } catch (Exception ignored) {
+
+        }
+        return NO_SIGN;
+    }
+
+    public String useCipher() {
+        if (server() != null) {
+            return server()
+                    .config.get()
+                    .useCipher.get();
+
+        }
+        if (client() != null) {
+            return client()
+                    .config.get()
+                    .useCipher.get();
+        }
+        return null;
     }
 }

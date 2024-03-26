@@ -108,6 +108,14 @@ public class EventFramework extends ReflectionFramework {
 
                 // 注册处理器
                 for (Class<?> interfaceOf : clazz.getInterfaces()) {
+                    if (NetworkEventHandler.class == interfaceOf) {
+                        LOGGER.warn("The event handler '{}' was implemented NetworkEventHandler directly, will not be loaded", clazz.getName());
+                        return;
+                    }
+                    if (EventHandler.class == interfaceOf) {
+                        LOGGER.warn("The event handler '{}' was implemented EventHandler directly, will not be loaded", clazz.getName());
+                        return;
+                    }
                     adder.accept(target(EntrustEnvironment.cast(interfaceOf)));
                 }
 
@@ -127,7 +135,7 @@ public class EventFramework extends ReflectionFramework {
                                     .getName(),
                             autoAnnotation.value()
                                     .getName(),
-                            annotations.toArray(new AutoEventHandler[0])[0].value()
+                            annotations.toArray(AutoEventHandler[]::new)[0].value()
                     );
                 } else if (annotations.size() > 2) {
                     // 当声明的目标超过1个时意味着一个处理器匹配了多个事件

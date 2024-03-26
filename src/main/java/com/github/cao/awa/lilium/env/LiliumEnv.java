@@ -3,6 +3,7 @@ package com.github.cao.awa.lilium.env;
 import com.github.cao.awa.apricot.util.time.TimeUtil;
 import com.github.cao.awa.lilium.await.AwaitManager;
 import com.github.cao.awa.lilium.client.LiliumClient;
+import com.github.cao.awa.lilium.config.constant.LiliumConstantsConfig;
 import com.github.cao.awa.lilium.framework.config.ConfigFramework;
 import com.github.cao.awa.lilium.framework.event.EventFramework;
 import com.github.cao.awa.lilium.framework.network.event.NetworkEventFramework;
@@ -18,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 public class LiliumEnv {
     private static final Logger LOGGER = LogManager.getLogger("LiliumEnv");
+    public static LiliumConstantsConfig constants = new LiliumConstantsConfig();
     public static LiliumServer SERVER;
     public static final AwaitManager awaitManager = new AwaitManager();
     public static final ConfigFramework CONFIG_FRAMEWORK = new ConfigFramework();
@@ -34,6 +36,10 @@ public class LiliumEnv {
         PLUGIN_FRAMEWORK.work();
         EVENT_FRAMEWORK.work();
         NETWORK_EVENT_FRAMEWORK.work();
+
+        setupConfig();
+
+        LiliumPreSharedCipher.setupCiphers();
     }
 
     public static void bootstrapServer() {
@@ -61,6 +67,10 @@ public class LiliumEnv {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static void setupConfig() {
+        CONFIG_FRAMEWORK.createConfig(constants);
     }
 
     public static void main(String[] args) {

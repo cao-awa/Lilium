@@ -22,4 +22,6 @@ public class LiliumConstantsConfig extends LiliumConfig {
     public final ConfigEntry<Long> longMax = ConfigEntry.entry();
     @AutoConfig("server_port")
     public final ConfigEntry<Integer> serverPort = ConfigEntry.entry();
+    @AutoConfig("ciphers_directory")
+    public final ConfigEntry<String> ciphersDirectory = ConfigEntry.entry();
 }

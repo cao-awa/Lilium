@@ -1,4 +1,4 @@
-package com.github.cao.awa.lilium.plugin.internal.user;
+package com.github.cao.awa.lilium.plugin.internal.core.user;
 
 import com.github.cao.awa.lilium.annotation.auto.plugin.AutoPlugin;
 import com.github.cao.awa.lilium.plugin.Plugin;

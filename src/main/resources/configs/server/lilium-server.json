@@ -1,5 +1,7 @@
 {
   "metadata": "@INHERITED:MetadataConfigTemplate",
-  "network": "@INHERITED:LiliumNetworkConfigTemplate"
+  "network": "@INHERITED:LiliumNetworkConfigTemplate",
+  "name": "Main",
+  "use_cipher": "main"
 }
 
