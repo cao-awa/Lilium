@@ -18,9 +18,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 
 public class LiliumPreSharedCipher {
-    private static final Logger LOGGER = LogManager.getLogger("KalmiaPreSharedCipher");
-    public static String defaultCipherField = "Kalmia/Main";
-    public static String expectCipherField = defaultCipherField;
+    private static final Logger LOGGER = LogManager.getLogger("LiliumPreSharedCipher");
     public static final PubkeyManager pubkeyManager = new PubkeyManager();
     public static final PrikeyManager prikeyManager = new PrikeyManager();
 

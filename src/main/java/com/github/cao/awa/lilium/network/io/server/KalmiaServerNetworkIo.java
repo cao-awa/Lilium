@@ -35,7 +35,7 @@ import java.util.function.Supplier;
  */
 @Stable
 public class KalmiaServerNetworkIo {
-    private static final Logger LOGGER = LogManager.getLogger("KalmiaNetworkIo");
+    private static final Logger LOGGER = LogManager.getLogger("LiliumServerNetworkIo");
     private static final Supplier<NioEventLoopGroup> DEFAULT_CHANNEL = () -> new NioEventLoopGroup(
             0,
             ExecutorFactor.intensiveIo()

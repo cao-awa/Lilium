@@ -12,6 +12,7 @@ import com.github.cao.awa.lilium.framework.plugin.PluginFramework;
 import com.github.cao.awa.lilium.framework.serialize.BinarySerializeFramework;
 import com.github.cao.awa.lilium.network.io.client.LiliumClientNetworkIo;
 import com.github.cao.awa.lilium.network.packet.inbound.disconnet.TryDisconnectPacket;
+import com.github.cao.awa.lilium.plugin.internal.core.encryption.packet.hello.ClientHelloPacket;
 import com.github.cao.awa.lilium.plugin.internal.mod.network.packet.inbound.update.UpdateModInformationPacket;
 import com.github.cao.awa.lilium.server.LiliumServer;
 import org.apache.logging.log4j.LogManager;
@@ -58,7 +59,8 @@ public class LiliumEnv {
         bootstrapFrameworks();
 
         LiliumClient client = new LiliumClient(router -> {
-            UpdateModInformationPacket packet = new UpdateModInformationPacket("Xxx mod");
+//            UpdateModInformationPacket packet = new UpdateModInformationPacket("Xxx mod");
+            ClientHelloPacket packet = new ClientHelloPacket("Lilium", "1.0.0", "main", -1);
             router.send(packet);
         });
 

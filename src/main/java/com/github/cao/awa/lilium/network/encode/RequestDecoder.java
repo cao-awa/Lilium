@@ -96,6 +96,8 @@ public class RequestDecoder extends ByteToMessageDecoder {
         // 构造reader
         BytesReader reader = BytesReader.of(payload);
 
+        System.out.println(Arrays.toString(payload));
+
         // 先使用RequestRouter解码
         reader.reset(this.router.decode(reader.all()));
 
