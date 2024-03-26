@@ -16,7 +16,8 @@
     "primeicons": "^6.0.1",
     "primereact": "^10.5.1",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "falcon-sign": "^1.0.4"
   },
   "devDependencies": {
     "@types/node": "^20",

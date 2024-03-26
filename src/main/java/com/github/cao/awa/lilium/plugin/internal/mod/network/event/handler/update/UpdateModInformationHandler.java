@@ -8,7 +8,7 @@ import com.github.cao.awa.lilium.plugin.internal.mod.network.packet.inbound.upda
 
 @Auto
 @PluginRegister(plugin = MinecraftModInformationPlugin.class)
-public class UpdateModInformationHandler implements UpdateModInformationEventHandler{
+public class UpdateModInformationHandler implements UpdateModInformationEventHandler {
     @Auto
     @Override
     public void handle(RequestRouter router, UpdateModInformationPacket packet) {

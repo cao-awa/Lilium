@@ -104,7 +104,7 @@ public class RequestDecoder extends ByteToMessageDecoder {
 
         // 数据摘要，如果不一直则说明可能传递出错或被篡改
         if (!Arrays.equals(MessageDigger.digestToBytes(remain,
-                        MessageDigger.Sha3.SHA_256
+                        MessageDigger.Sha3.SHA_512
                 ),
                 digest
         )) {

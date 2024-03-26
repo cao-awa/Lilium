@@ -6,6 +6,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.IESParameterSpec;
+import org.bouncycastle.pqc.crypto.falcon.FalconKeyParameters;
+import org.bouncycastle.pqc.crypto.falcon.FalconParameters;
+import org.bouncycastle.pqc.jcajce.interfaces.FalconPrivateKey;
+import org.bouncycastle.pqc.jcajce.interfaces.FalconPublicKey;
+import org.bouncycastle.pqc.jcajce.spec.FalconParameterSpec;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherOutputStream;
@@ -25,15 +30,16 @@ import java.security.spec.X509EncodedKeySpec;
 @Stable
 public class Crypto {
     private static final Logger DEBUG = LogManager.getLogger("Debugger");
-    private static final byte[] DEFAULT_KEY_IV = new byte[]{102, - 123, 114, - 106, - 40, - 35, 71, - 2, - 89, 81, 13, 47, - 79, 89, 121, - 23};
+    private static final byte[] DEFAULT_KEY_IV = new byte[]{102, -123, 114, -106, -40, -35, 71, -2, -89, 81, 13, 47, -79, 89, 121, -23};
     public static final String RSA_ALGORITHM = "RSA";
     public static final String BC_PROVIDER = "BC";
     public static final String EC_ALGORITHM = "EC";
+    public static final String FALCON_ALGORITHM = "Falcon";
     public static final SecureRandom RANDOM = new SecureRandom();
 
     static {
         Security.setProperty("crypto.policy",
-                             "unlimited"
+                "unlimited"
         );
         Security.addProvider(new BouncyCastleProvider());
     }
@@ -44,15 +50,15 @@ public class Crypto {
 
     public static byte[] aesDecrypt(byte[] content, byte[] cipher) throws Exception {
         return aesDecrypt(content,
-                          cipher,
-                          DEFAULT_KEY_IV
+                cipher,
+                DEFAULT_KEY_IV
         );
     }
 
     public static byte[] aesEncrypt(byte[] content, byte[] cipher) throws Exception {
         return aesEncrypt(content,
-                          cipher,
-                          DEFAULT_KEY_IV
+                cipher,
+                DEFAULT_KEY_IV
         );
     }
 
@@ -62,10 +68,10 @@ public class Crypto {
         }
         Cipher instance = Cipher.getInstance("AES/CBC/PKCS5Padding");
         instance.init(Cipher.DECRYPT_MODE,
-                      new SecretKeySpec(cipher,
-                                        "AES"
-                      ),
-                      new IvParameterSpec(iv)
+                new SecretKeySpec(cipher,
+                        "AES"
+                ),
+                new IvParameterSpec(iv)
         );
         return instance.doFinal(content);
     }
@@ -76,10 +82,10 @@ public class Crypto {
         }
         Cipher instance = Cipher.getInstance("AES/CBC/PKCS5Padding");
         instance.init(Cipher.ENCRYPT_MODE,
-                      new SecretKeySpec(cipher,
-                                        "AES"
-                      ),
-                      new IvParameterSpec(iv)
+                new SecretKeySpec(cipher,
+                        "AES"
+                ),
+                new IvParameterSpec(iv)
         );
         return instance.doFinal(content);
     }
@@ -110,23 +116,23 @@ public class Crypto {
         }
         Cipher instance = Cipher.getInstance("AES/CBC/PKCS5Padding");
         instance.init(mode,
-                      new SecretKeySpec(cipher,
-                                        "AES"
-                      ),
-                      new IvParameterSpec(iv)
+                new SecretKeySpec(cipher,
+                        "AES"
+                ),
+                new IvParameterSpec(iv)
         );
         FileOutputStream fileOutput = new FileOutputStream(outputFile);
         CipherOutputStream output = new CipherOutputStream(fileOutput,
-                                                           instance
+                instance
         );
 
         FileInputStream fileInput = new FileInputStream(inputFile);
         byte[] buffer = new byte[16384];
         int length;
-        while ((length = fileInput.read(buffer)) != - 1) {
+        while ((length = fileInput.read(buffer)) != -1) {
             output.write(buffer,
-                         0,
-                         length
+                    0,
+                    length
             );
             output.flush();
         }
@@ -136,32 +142,42 @@ public class Crypto {
         fileOutput.close();
     }
 
+    public static KeyPair falconKeypair(int size) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(FALCON_ALGORITHM,
+                BC_PROVIDER
+        );
+        keyPairGenerator.initialize(FalconParameterSpec.fromName("falcon-" + size),
+                RANDOM
+        );
+        return keyPairGenerator.genKeyPair();
+    }
+
     public static KeyPair rsaKeypair(int size) throws NoSuchAlgorithmException, NoSuchProviderException {
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(RSA_ALGORITHM,
-                                                                         BC_PROVIDER
+                BC_PROVIDER
         );
         keyPairGenerator.initialize(size,
-                                    RANDOM
+                RANDOM
         );
         return keyPairGenerator.genKeyPair();
     }
 
     public static byte[] rsaEncrypt(byte[] content, RSAPublicKey publicKey) throws Exception {
         Cipher cipher = Cipher.getInstance(RSA_ALGORITHM,
-                                           BC_PROVIDER
+                BC_PROVIDER
         );
         cipher.init(Cipher.ENCRYPT_MODE,
-                    publicKey
+                publicKey
         );
         return cipher.doFinal(content);
     }
 
     public static byte[] rsaDecrypt(byte[] content, RSAPrivateKey privateKey) throws Exception {
         Cipher cipher = Cipher.getInstance(RSA_ALGORITHM,
-                                           BC_PROVIDER
+                BC_PROVIDER
         );
         cipher.init(Cipher.DECRYPT_MODE,
-                    privateKey
+                privateKey
         );
         return cipher.doFinal(content);
     }
@@ -173,11 +189,11 @@ public class Crypto {
 
         if (publicKey instanceof RSAPublicKey rsa) {
             return rsaEncrypt(content,
-                              rsa
+                    rsa
             );
         } else if (publicKey instanceof ECPublicKey ec) {
             return ecEncrypt(content,
-                             ec
+                    ec
             );
         }
         return content;
@@ -190,11 +206,11 @@ public class Crypto {
 
         if (privateKey instanceof RSAPrivateKey rsa) {
             return rsaDecrypt(content,
-                              rsa
+                    rsa
             );
         } else if (privateKey instanceof ECPrivateKey ec) {
             return ecDecrypt(content,
-                             ec
+                    ec
             );
         }
         return content;
@@ -207,11 +223,11 @@ public class Crypto {
 
         if (privateKey instanceof RSAPrivateKey rsa) {
             return rsaSign(content,
-                           rsa
+                    rsa
             );
         } else if (privateKey instanceof ECPrivateKey ec) {
             return ecSign(content,
-                          ec
+                    ec
             );
         }
         return content;
@@ -224,13 +240,13 @@ public class Crypto {
 
         if (publicKey instanceof RSAPublicKey rsa) {
             return rsaVerify(contentSource,
-                             contentSign,
-                             rsa
+                    contentSign,
+                    rsa
             );
         } else if (publicKey instanceof ECPublicKey ec) {
             return ecVerify(contentSource,
-                            contentSign,
-                            ec
+                    contentSign,
+                    ec
             );
         }
         return false;
@@ -256,42 +272,57 @@ public class Crypto {
         }
     }
 
+    public static byte[] falconDecrypt(byte[] encryptedData, FalconPrivateKey privateKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("ECIES",
+                "BC"
+        );
+        cipher.init(Cipher.DECRYPT_MODE,
+                privateKey,
+                new IESParameterSpec(null,
+                        null,
+                        256
+                ),
+                RANDOM
+        );
+        return cipher.doFinal(encryptedData);
+    }
+
     public static KeyPair ecKeyPair(int keySize) throws Exception {
         KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance(EC_ALGORITHM,
-                                                                   BC_PROVIDER
+                BC_PROVIDER
         );
         keyPairGen.initialize(keySize,
-                              RANDOM
+                RANDOM
         );
         return keyPairGen.generateKeyPair();
     }
 
     public static byte[] ecEncrypt(byte[] data, ECPublicKey publicKey) throws Exception {
         Cipher cipher = Cipher.getInstance("ECIES",
-                                           "BC"
+                "BC"
         );
         cipher.init(Cipher.ENCRYPT_MODE,
-                    publicKey,
-                    new IESParameterSpec(null,
-                                         null,
-                                         256
-                    ),
-                    RANDOM
+                publicKey,
+                new IESParameterSpec(null,
+                        null,
+                        256
+                ),
+                RANDOM
         );
         return cipher.doFinal(data);
     }
 
     public static byte[] ecDecrypt(byte[] encryptedData, ECPrivateKey privateKey) throws Exception {
         Cipher cipher = Cipher.getInstance("ECIES",
-                                           "BC"
+                "BC"
         );
         cipher.init(Cipher.DECRYPT_MODE,
-                    privateKey,
-                    new IESParameterSpec(null,
-                                         null,
-                                         256
-                    ),
-                    RANDOM
+                privateKey,
+                new IESParameterSpec(null,
+                        null,
+                        256
+                ),
+                RANDOM
         );
         return cipher.doFinal(encryptedData);
     }
@@ -313,6 +344,25 @@ public class Crypto {
             return EntrustEnvironment.cast(keyFactory.generatePrivate(keySpec));
         } catch (Exception exception) {
             throw new RuntimeException(exception);
+        }
+    }
+
+    public static byte[] falconSign(byte[] content, FalconPrivateKey privateKey) throws Exception {
+        Signature sign = Signature.getInstance("FALCON");
+        sign.initSign(privateKey);
+        sign.update(content);
+        return sign.sign();
+    }
+
+
+    public static Boolean falconVerify(byte[] contentSource, byte[] contentSign, FalconPublicKey pubKey) {
+        try {
+            Signature sign = Signature.getInstance("FALCON");
+            sign.initVerify(pubKey);
+            sign.update(contentSource);
+            return sign.verify(contentSign);
+        } catch (Exception e) {
+            return false;
         }
     }
 

@@ -107,7 +107,7 @@ public abstract class Packet<T extends PacketHandler<T>> {
         );
 
         byte[] digest = MessageDigger.digestToBytes(payload,
-                MessageDigger.Sha3.SHA_256
+                MessageDigger.Sha3.SHA_512
         );
 
         return router.encode(BytesUtil.concat(
